@@ -28,11 +28,16 @@ export default class BibleReferencePlugin extends Plugin {
 					return;
 				}
 
+				// Check if there's selected text and if it contains a Bible reference
+				const selectedText = editor.getSelection().trim();
+				const selectionInfo = this.extractReferenceFromSelection(selectedText);
+
 				new BibleReferenceModal(
 					this.app,
 					this.settings.translations,
-					this.settings.defaultTranslation,
+					selectionInfo.translation || this.settings.defaultTranslation,
 					this.dataLoader,
+					selectionInfo.reference,
 					(reference, verses, translation) => {
 						this.insertScriptureCallout(editor, reference, verses, translation);
 					}
@@ -73,6 +78,64 @@ export default class BibleReferencePlugin extends Plugin {
 
 	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string) {
 		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation);
+	}
+
+	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {
+		// Only check for references if the selection is reasonable length (not a whole document)
+		if (!selectedText || selectedText.length > 100 || selectedText.includes('\n')) {
+			return { reference: '', translation: null };
+		}
+
+		try {
+			// Import detect_references for validation
+			const { detect_references } = require('./bible-references/index.js');
+
+			const matchGenerator = detect_references(selectedText);
+			const matches = Array.from(matchGenerator);
+
+			// If we found a valid reference, extract the reference and translation
+			if (matches && matches.length > 0 && (matches[0] as any).ref) {
+				const { reference, translation } = this.parseReferenceAndTranslation(selectedText);
+				console.log('Found Bible reference in selection:', reference, translation ? `(${translation})` : '');
+				return { reference, translation };
+			}
+		} catch (error) {
+			// If there's any error with detection, just return empty
+			console.log('No Bible reference detected in selection');
+		}
+
+		return { reference: '', translation: null };
+	}
+
+	private parseReferenceAndTranslation(text: string): { reference: string; translation: string | null } {
+		// Look for common translation patterns at the end of the reference
+		// Matches patterns like: "John 3:16, NET" or "John 3:16 (ESV)" or "John 3:16 NET"
+		const translationPatterns = [
+			/, ([A-Z]{2,5})$/,           // "John 3:16, NET"
+			/\(([A-Z]{2,5})\)$/,         // "John 3:16 (NET)"
+			/ ([A-Z]{2,5})$/             // "John 3:16 NET"
+		];
+
+		for (const pattern of translationPatterns) {
+			const match = text.match(pattern);
+			if (match) {
+				const possibleTranslation = match[1];
+
+				// Check if this translation exists in our configured translations
+				const foundTranslation = this.settings.translations.find(t =>
+					t.name.toUpperCase() === possibleTranslation.toUpperCase()
+				);
+
+				if (foundTranslation) {
+					// Remove the translation part to get clean reference
+					const reference = text.replace(pattern, '').trim();
+					return { reference, translation: foundTranslation.name };
+				}
+			}
+		}
+
+		// No translation found or translation not configured, return full text as reference
+		return { reference: text.trim(), translation: null };
 	}
 
 	private async migrateOldSettings() {

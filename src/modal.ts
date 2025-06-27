@@ -11,12 +11,14 @@ export class BibleReferenceModal extends Modal {
 	private inputEl: HTMLInputElement;
 	private translationButtons: ButtonComponent[] = [];
 	private previewEl: HTMLElement;
+	private initialReference: string;
 
-	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, onSubmit: OnSubmitCallback) {
+	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback) {
 		super(app);
 		this.translations = translations;
 		this.selectedTranslation = defaultTranslation || (translations.length > 0 ? translations[0].name : '');
 		this.dataLoader = dataLoader;
+		this.initialReference = initialReference || '';
 		this.onSubmit = onSubmit;
 	}
 
@@ -56,6 +58,13 @@ export class BibleReferenceModal extends Modal {
 		this.inputEl.style.width = '100%';
 		this.inputEl.style.padding = '8px';
 		this.inputEl.style.margin = '5px 0 15px 0';
+
+		// Set initial value if we have a pre-populated reference
+		if (this.initialReference) {
+			this.inputEl.value = this.initialReference;
+			// Trigger preview update for pre-populated reference
+			setTimeout(() => this.updatePreview(), 100);
+		}
 
 		// Update preview when typing
 		this.inputEl.addEventListener('input', () => {
