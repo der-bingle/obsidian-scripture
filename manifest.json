@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "bible-reference",
+	"name": "Bible Reference",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Insert Bible verses as formatted callouts with reference lookup from JSON data",
+	"author": "Your Name",
+	"authorUrl": "https://github.com/yourusername",
+	"fundingUrl": "https://buymeacoffee.com/yourusername",
 	"isDesktopOnly": false
 }

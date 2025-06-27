@@ -1,0 +1,422 @@
+{
+	"translation": "CSB",
+	"books": [
+		{
+			"id": "JHN",
+			"title": "John",
+			"bookNumber": 43,
+			"testament": "NEW",
+			"abbreviations": ["John", "Jn"],
+			"numberOfChapters": 21,
+			"numberOfVerses": 878,
+			"translation": "CSB",
+			"chapters": [
+				{
+					"id": "JHN.003",
+					"book": "John",
+					"chapter": 3,
+					"verseCount": 36,
+					"wordCount": 734,
+					"verses": [
+						{
+							"id": "JHN.003.001",
+							"book": "John",
+							"chapter": 3,
+							"verse": 1,
+							"content": [
+								"There was a man from the Pharisees named Nicodemus, a ruler of the Jews."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.002",
+							"book": "John",
+							"chapter": 3,
+							"verse": 2,
+							"content": [
+								"This man came to him at night and said, “Rabbi, we know that you are a teacher who has come from God, for no one could perform these signs you do unless God were with him.”"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.003",
+							"book": "John",
+							"chapter": 3,
+							"verse": 3,
+							"content": [
+								"Jesus replied, “Truly I tell you, unless someone is born again, he cannot see the kingdom of God.”"
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.004",
+							"book": "John",
+							"chapter": 3,
+							"verse": 4,
+							"content": [
+								"“How can anyone be born when he is old?” Nicodemus asked him. “Can he enter his mother’s womb a second time and be born?”"
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.005",
+							"book": "John",
+							"chapter": 3,
+							"verse": 5,
+							"content": [
+								"Jesus answered, “Truly I tell you, unless someone is born of water and the Spirit, he cannot enter the kingdom of God."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.006",
+							"book": "John",
+							"chapter": 3,
+							"verse": 6,
+							"content": [
+								"Whatever is born of the flesh is flesh, and whatever is born of the Spirit is spirit."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.007",
+							"book": "John",
+							"chapter": 3,
+							"verse": 7,
+							"content": [
+								"Do not be amazed that I told you that you must be born again."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.008",
+							"book": "John",
+							"chapter": 3,
+							"verse": 8,
+							"content": [
+								"The wind blows where it pleases, and you hear its sound, but you don’t know where it comes from or where it is going. So it is with everyone born of the Spirit.”"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.009",
+							"book": "John",
+							"chapter": 3,
+							"verse": 9,
+							"content": [
+								"“How can these things be?” asked Nicodemus."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.010",
+							"book": "John",
+							"chapter": 3,
+							"verse": 10,
+							"content": [
+								"“Are you a teacher of Israel and don’t know these things?” Jesus replied."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.011",
+							"book": "John",
+							"chapter": 3,
+							"verse": 11,
+							"content": [
+								"“Truly I tell you, we speak what we know and we testify to what we have seen, but you do not accept our testimony."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.012",
+							"book": "John",
+							"chapter": 3,
+							"verse": 12,
+							"content": [
+								"If I have told you about earthly things and you don’t believe, how will you believe if I tell you about heavenly things?"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.013",
+							"book": "John",
+							"chapter": 3,
+							"verse": 13,
+							"content": [
+								"No one has ascended into heaven except the one who descended from heaven—the Son of Man."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.014",
+							"book": "John",
+							"chapter": 3,
+							"verse": 14,
+							"content": [
+								"“Just as Moses lifted up the snake in the wilderness, so the Son of Man must be lifted up,"
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.015",
+							"book": "John",
+							"chapter": 3,
+							"verse": 15,
+							"content": [
+								"so that everyone who believes in him may have eternal life."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.016",
+							"book": "John",
+							"chapter": 3,
+							"verse": 16,
+							"content": [
+								"For God loved the world in this way: He gave his one and only Son, so that everyone who believes in him will not perish but have eternal life."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.017",
+							"book": "John",
+							"chapter": 3,
+							"verse": 17,
+							"content": [
+								"For God did not send his Son into the world to condemn the world, but to save the world through him."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.018",
+							"book": "John",
+							"chapter": 3,
+							"verse": 18,
+							"content": [
+								"Anyone who believes in him is not condemned, but anyone who does not believe is already condemned, because he has not believed in the name of the one and only Son of God."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.019",
+							"book": "John",
+							"chapter": 3,
+							"verse": 19,
+							"content": [
+								"This is the judgment: The light has come into the world, and people loved darkness rather than the light because their deeds were evil."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.020",
+							"book": "John",
+							"chapter": 3,
+							"verse": 20,
+							"content": [
+								"For everyone who does evil hates the light and avoids it, so that his deeds may not be exposed."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.021",
+							"book": "John",
+							"chapter": 3,
+							"verse": 21,
+							"content": [
+								"But anyone who lives by the truth comes to the light, so that his works may be shown to be accomplished by God.”"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.022",
+							"book": "John",
+							"chapter": 3,
+							"verse": 22,
+							"content": [
+								"After this, Jesus and his disciples went to the Judean countryside, where he spent time with them and baptized."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.023",
+							"book": "John",
+							"chapter": 3,
+							"verse": 23,
+							"content": [
+								"John also was baptizing in Aenon near Salim, because there was plenty of water there. People were coming and being baptized,"
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.024",
+							"book": "John",
+							"chapter": 3,
+							"verse": 24,
+							"content": [
+								"since John had not yet been thrown into prison."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.025",
+							"book": "John",
+							"chapter": 3,
+							"verse": 25,
+							"content": [
+								"Then a dispute arose between John’s disciples and a Jew about purification."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.026",
+							"book": "John",
+							"chapter": 3,
+							"verse": 26,
+							"content": [
+								"So they came to John and told him, “Rabbi, the one you testified about, and who was with you across the Jordan, is baptizing—and everyone is going to him.”"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.027",
+							"book": "John",
+							"chapter": 3,
+							"verse": 27,
+							"content": [
+								"John responded, “No one can receive anything unless it has been given to him from heaven."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.028",
+							"book": "John",
+							"chapter": 3,
+							"verse": 28,
+							"content": [
+								"You yourselves can testify that I said, ‘I am not the Messiah, but I’ve been sent ahead of him.’"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.029",
+							"book": "John",
+							"chapter": 3,
+							"verse": 29,
+							"content": [
+								"He who has the bride is the groom. But the groom’s friend, who stands by and listens for him, rejoices greatly at the groom’s voice. So this joy of mine is complete."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.030",
+							"book": "John",
+							"chapter": 3,
+							"verse": 30,
+							"content": [
+								"He must increase, but I must decrease.”"
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.031",
+							"book": "John",
+							"chapter": 3,
+							"verse": 31,
+							"content": [
+								"The one who comes from above is above all. The one who is from the earth is earthly and speaks in earthly terms. The one who comes from heaven is above all."
+							],
+							"newParagraph": true,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.032",
+							"book": "John",
+							"chapter": 3,
+							"verse": 32,
+							"content": [
+								"He testifies to what he has seen and heard, and yet no one accepts his testimony."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.033",
+							"book": "John",
+							"chapter": 3,
+							"verse": 33,
+							"content": [
+								"The one who has accepted his testimony has affirmed that God is true."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.034",
+							"book": "John",
+							"chapter": 3,
+							"verse": 34,
+							"content": [
+								"For the one whom God sent speaks God’s words, since he gives the Spirit without measure."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.035",
+							"book": "John",
+							"chapter": 3,
+							"verse": 35,
+							"content": [
+								"The Father loves the Son and has given all things into his hands."
+							],
+							"newParagraph": false,
+							"poetry": false
+						},
+						{
+							"id": "JHN.003.036",
+							"book": "John",
+							"chapter": 3,
+							"verse": 36,
+							"content": [
+								"The one who believes in the Son has eternal life, but the one who rejects the Son will not see life; instead, the wrath of God remains on him."
+							],
+							"newParagraph": false,
+							"poetry": false
+						}
+					]
+				}
+			]
+		}
+	]
+}
