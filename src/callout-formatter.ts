@@ -39,8 +39,38 @@ export class CalloutFormatter {
 		// Split into lines and prefix each with "> " for callout formatting
 		const calloutLines = this.formatAsCalloutLines(versesText);
 		
-		// Combine header and content with blank line at end
-		return `${header}\n${calloutLines}\n\n`;
+		// Generate hidden links if enabled and there are multiple verses
+		const hiddenLinks = this.generateHiddenLinks(verses, translation);
+		
+		// Combine header, content, hidden links, and blank line at end
+		const parts = [header, calloutLines];
+		if (hiddenLinks) {
+			parts.push(hiddenLinks);
+		}
+		parts.push(''); // Blank line at end
+		
+		return parts.join('\n') + '\n';
+	}
+
+	private generateHiddenLinks(verses: BibleVerse[], translation: string): string | null {
+		// Only generate hidden links if setting is enabled and there are multiple verses
+		if (!this.settings.includeHiddenLinks || verses.length <= 1) {
+			return null;
+		}
+
+		// Determine which translation to link to
+		const linkTranslation = this.getLinkTranslation(translation);
+		
+		// Generate hidden links for all verses except the first (which is already linked in title)
+		const hiddenLinks = verses.slice(1).map(verse => {
+			// Convert book name for linking (Psalms → Psalm)
+			const linkBookName = verse.book === 'Psalms' ? 'Psalm' : verse.book;
+			const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verse.chapter}`;
+			return `[[${linkPath}#${verse.verse}|]]`;
+		});
+
+		// Return as callout line with space-separated links
+		return `> ${hiddenLinks.join(' ')}`;
 	}
 
 	private formatProperReference(verses: BibleVerse[], translation: string): string {

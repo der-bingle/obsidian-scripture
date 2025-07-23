@@ -199,6 +199,18 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 					this.plugin.updateFormatterSettings();
 				}));
 
+		// Hidden links setting
+		new Setting(containerEl)
+			.setName('Include hidden links to all verses in ranges')
+			.setDesc('Add individual verse links at the end of multi-verse callouts')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.includeHiddenLinks)
+				.onChange(async (value) => {
+					this.plugin.settings.includeHiddenLinks = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateFormatterSettings();
+				}));
+
 		// Validate all translations button
 		new Setting(containerEl)
 			.setName('Validate Translations')
