@@ -47,12 +47,12 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 
 						// Add to settings
 						this.plugin.settings.translations.push(translation);
-
+						
 						// Set as default if it's the first one
 						if (this.plugin.settings.translations.length === 1) {
 							this.plugin.settings.defaultTranslation = translation.name;
 						}
-
+						
 						await this.plugin.saveSettings();
 						this.display(); // Refresh the display
 						new Notice(`Added translation: ${translation.name}`);
@@ -64,7 +64,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 		container.empty();
 
 		if (this.plugin.settings.translations.length === 0) {
-			container.createEl('p', {
+			container.createEl('p', { 
 				text: 'No translations configured. Add one to get started.',
 				cls: 'setting-item-description'
 			});
@@ -95,10 +95,10 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 
 						// Update in settings
 						this.plugin.settings.translations[index] = updatedTranslation;
-
+						
 						// Clear cache for old translation
 						this.dataLoader.clearCache(translation.name);
-
+						
 						await this.plugin.saveSettings();
 						this.display(); // Refresh the display
 						new Notice(`Updated translation: ${updatedTranslation.name}`);
@@ -112,18 +112,18 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onClick(async () => {
 					// Remove from settings
 					this.plugin.settings.translations.splice(index, 1);
-
+					
 					// Clear cache
 					this.dataLoader.clearCache(translation.name);
-
+					
 					// Update default if removed translation was default
 					if (this.plugin.settings.defaultTranslation === translation.name) {
-						this.plugin.settings.defaultTranslation =
-							this.plugin.settings.translations.length > 0
-								? this.plugin.settings.translations[0].name
+						this.plugin.settings.defaultTranslation = 
+							this.plugin.settings.translations.length > 0 
+								? this.plugin.settings.translations[0].name 
 								: '';
 					}
-
+					
 					await this.plugin.saveSettings();
 					this.display(); // Refresh the display
 					new Notice(`Removed translation: ${translation.name}`);
@@ -146,7 +146,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 						dropdown.addOption(translation.name, translation.name);
 					});
 				}
-
+				
 				dropdown
 					.setValue(this.plugin.settings.defaultTranslation)
 					.onChange(async (value) => {
@@ -181,6 +181,20 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.translationDisplay)
 				.onChange(async (value: 'never' | 'always' | 'except-default') => {
 					this.plugin.settings.translationDisplay = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateFormatterSettings();
+				}));
+
+		// Linking strategy setting
+		new Setting(containerEl)
+			.setName('Linking Strategy')
+			.setDesc('Which translation to link to in scripture callout titles')
+			.addDropdown(dropdown => dropdown
+				.addOption('default-translation', 'Always link to default translation')
+				.addOption('verse-translation', 'Link to verse translation')
+				.setValue(this.plugin.settings.linkingStrategy)
+				.onChange(async (value: 'default-translation' | 'verse-translation') => {
+					this.plugin.settings.linkingStrategy = value;
 					await this.plugin.saveSettings();
 					this.plugin.updateFormatterSettings();
 				}));
