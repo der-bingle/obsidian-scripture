@@ -56,6 +56,7 @@ export interface BibleReferenceSettings {
 	defaultTranslation: string;
 	verseNumbers: 'include' | 'exclude' | 'exclude-first';
 	translationDisplay: 'never' | 'always' | 'except-default';
+	linkingStrategy: 'default-translation' | 'verse-translation';
 }
 
 // Default settings
@@ -63,7 +64,8 @@ export const DEFAULT_SETTINGS: BibleReferenceSettings = {
 	translations: [],
 	defaultTranslation: '',
 	verseNumbers: 'exclude',
-	translationDisplay: 'except-default'
+	translationDisplay: 'except-default',
+	linkingStrategy: 'default-translation'
 };
 
 // Modal callback type
