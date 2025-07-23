@@ -3,7 +3,7 @@ import type { BibleVerse, BibleReferenceSettings } from './types';
 
 export class CalloutFormatter {
 	private settings: BibleReferenceSettings;
-
+	
 	constructor(settings: BibleReferenceSettings) {
 		this.settings = settings;
 	}
@@ -14,14 +14,14 @@ export class CalloutFormatter {
 
 		const startPos = cursor;
 		editor.replaceRange(callout, startPos);
-
+		
 		// Move cursor to after the callout (still has positioning issues but we'll fix later)
 		const lines = callout.split('\n');
 		const endPos = {
 			line: startPos.line + lines.length - 1,
 			ch: 0
 		};
-
+		
 		editor.setCursor(endPos);
 	}
 
@@ -29,16 +29,16 @@ export class CalloutFormatter {
 		// Create properly formatted reference with full book name
 		const formattedReference = this.formatProperReference(verses, translation);
 		const header = `> [!scripture] ${formattedReference}`;
-
+		
 		// Format each verse according to settings
 		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length));
-
+		
 		// Join verses with spaces (multiple verses in same callout)
 		const versesText = formattedVerses.join(' ');
-
+		
 		// Split into lines and prefix each with "> " for callout formatting
 		const calloutLines = this.formatAsCalloutLines(versesText);
-
+		
 		// Combine header and content with blank line at end
 		return `${header}\n${calloutLines}\n\n`;
 	}
@@ -50,11 +50,11 @@ export class CalloutFormatter {
 
 		const firstVerse = verses[0];
 		const lastVerse = verses[verses.length - 1];
-
+		
 		// Get the full book name from the first verse
 		const bookName = firstVerse.book;
 		const chapter = firstVerse.chapter;
-
+		
 		// Format verse range
 		let verseRange: string;
 		if (verses.length === 1) {
@@ -67,12 +67,35 @@ export class CalloutFormatter {
 			// Cross-chapter range
 			verseRange = `${firstVerse.verse}–${lastVerse.chapter}:${lastVerse.verse}`;
 		}
-
-		// Determine if translation should be included
+		
+		// Determine if translation should be included in display text
 		const shouldIncludeTranslation = this.shouldIncludeTranslation(translation);
 		const translationSuffix = shouldIncludeTranslation ? `, ${translation}` : '';
+		
+		// Create the display text
+		const displayText = `${bookName} ${chapter}:${verseRange}${translationSuffix}`;
+		
+		// Determine which translation to link to
+		const linkTranslation = this.getLinkTranslation(translation);
+		
+		// Convert book name for linking (Psalms → Psalm)
+		const linkBookName = bookName === 'Psalms' ? 'Psalm' : bookName;
+		
+		// Create the wikilink
+		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${chapter}`;
+		const anchor = firstVerse.verse.toString(); // Link to first verse for ranges
+		
+		return `[[${linkPath}#${anchor}|${displayText}]]`;
+	}
 
-		return `${bookName} ${chapter}:${verseRange}${translationSuffix}`;
+	private getLinkTranslation(verseTranslation: string): string {
+		switch (this.settings.linkingStrategy) {
+			case 'verse-translation':
+				return verseTranslation;
+			case 'default-translation':
+			default:
+				return this.settings.defaultTranslation || verseTranslation;
+		}
 	}
 
 	private shouldIncludeTranslation(translation: string): boolean {
@@ -91,16 +114,16 @@ export class CalloutFormatter {
 	private formatVerse(verse: BibleVerse, index: number, totalVerses: number): string {
 		// Start with the verse content, joining multiple lines with newlines
 		let content = verse.content.join('\n');
-
+		
 		// Add extra newline for poetry verses ONLY if it's not the last verse
 		const isLastVerse = index === totalVerses - 1;
 		if (verse.poetry && !isLastVerse) {
 			content += '\n';
 		}
-
+		
 		// Add verse number based on settings
 		const versePrefix = this.getVersePrefix(verse.verse, index);
-
+		
 		return `${versePrefix}${content}`;
 	}
 
