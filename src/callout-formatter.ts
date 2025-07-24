@@ -9,20 +9,25 @@ export class CalloutFormatter {
 	}
 
 	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string): void {
-		const cursor = editor.getCursor();
 		const callout = this.formatCallout(reference, verses, translation);
+		const selection = editor.getSelection();
 
-		const startPos = cursor;
-		editor.replaceRange(callout, startPos);
-		
-		// Move cursor to after the callout (still has positioning issues but we'll fix later)
-		const lines = callout.split('\n');
-		const endPos = {
-			line: startPos.line + lines.length - 1,
-			ch: 0
-		};
-		
-		editor.setCursor(endPos);
+		if (selection.trim()) {
+			// Replace selected text with the callout
+			editor.replaceSelection(callout);
+		} else {
+			// No selection—insert at cursor position (original behavior)
+			const cursor = editor.getCursor();
+			editor.replaceRange(callout, cursor);
+			
+			// Move cursor to after the callout
+			const lines = callout.split('\n');
+			const endPos = {
+				line: cursor.line + lines.length - 1,
+				ch: 0
+			};
+			editor.setCursor(endPos);
+		}
 	}
 
 	private formatCallout(reference: string, verses: BibleVerse[], translation: string): string {
@@ -47,7 +52,6 @@ export class CalloutFormatter {
 		if (hiddenLinks) {
 			parts.push(hiddenLinks);
 		}
-		parts.push(''); // Blank line at end
 		
 		return parts.join('\n') + '\n';
 	}
