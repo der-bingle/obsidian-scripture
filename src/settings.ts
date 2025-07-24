@@ -199,6 +199,21 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 					this.plugin.updateFormatterSettings();
 				}));
 
+		// Callout folding setting
+		new Setting(containerEl)
+			.setName('Callout Folding')
+			.setDesc('Whether scripture callouts should be foldable')
+			.addDropdown(dropdown => dropdown
+				.addOption('not-foldable', 'Not foldable')
+				.addOption('foldable-expanded', 'Foldable, expanded by default')
+				.addOption('foldable-collapsed', 'Foldable, collapsed by default')
+				.setValue(this.plugin.settings.calloutFolding)
+				.onChange(async (value: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed') => {
+					this.plugin.settings.calloutFolding = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateFormatterSettings();
+				}));
+
 		// Hidden links setting
 		new Setting(containerEl)
 			.setName('Include hidden links to all verses in ranges')

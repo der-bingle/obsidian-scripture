@@ -58,6 +58,7 @@ export interface BibleReferenceSettings {
 	translationDisplay: 'never' | 'always' | 'except-default';
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
+	calloutFolding: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed';
 }
 
 // Default settings
@@ -67,7 +68,8 @@ export const DEFAULT_SETTINGS: BibleReferenceSettings = {
 	verseNumbers: 'exclude',
 	translationDisplay: 'except-default',
 	linkingStrategy: 'default-translation',
-	includeHiddenLinks: false
+	includeHiddenLinks: false,
+	calloutFolding: 'not-foldable'
 };
 
 // Modal callback type

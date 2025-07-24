@@ -33,7 +33,8 @@ export class CalloutFormatter {
 	private formatCallout(reference: string, verses: BibleVerse[], translation: string): string {
 		// Create properly formatted reference with full book name
 		const formattedReference = this.formatProperReference(verses, translation);
-		const header = `> [!scripture] ${formattedReference}`;
+		const foldingIndicator = this.getFoldingIndicator();
+		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
 		// Format each verse according to settings
 		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length));
@@ -183,5 +184,17 @@ export class CalloutFormatter {
 
 	updateSettings(settings: BibleReferenceSettings): void {
 		this.settings = settings;
+	}
+
+	private getFoldingIndicator(): string {
+		switch (this.settings.calloutFolding) {
+			case 'foldable-expanded':
+				return '+';
+			case 'foldable-collapsed':
+				return '-';
+			case 'not-foldable':
+			default:
+				return '';
+		}
 	}
 }
