@@ -39,15 +39,29 @@ export class BibleVerseDisplayManager {
 		// Remove existing verse number classes
 		const classesToRemove = ['bible-numbers-none', 'bible-numbers-first', 'bible-numbers-all'];
 		
+		// Determine which class to apply based on settings
+		const classToApply = this.getCurrentDisplayClass();
+		
 		if (editorContainer) {
 			editorContainer.removeClass(...classesToRemove);
-			editorContainer.addClass(`bible-numbers-${this.settings.bibleVerseNumberDisplay}`);
+			editorContainer.addClass(classToApply);
 		}
 
 		if (previewContainer) {
 			previewContainer.removeClass(...classesToRemove);
-			previewContainer.addClass(`bible-numbers-${this.settings.bibleVerseNumberDisplay}`);
+			previewContainer.addClass(classToApply);
 		}
+	}
+
+	// Get the current CSS class based on settings
+	private getCurrentDisplayClass(): string {
+		if (!this.settings.verseNumbersVisible) {
+			return 'bible-numbers-none';
+		}
+		
+		return this.settings.verseNumberDisplayMode === 'first' 
+			? 'bible-numbers-first' 
+			: 'bible-numbers-all';
 	}
 
 	// Remove verse number display classes from a leaf
@@ -89,24 +103,26 @@ export class BibleVerseDisplayManager {
 		});
 	}
 
-	// Cycle through verse number display options
-	cycleVerseNumberDisplay(): string {
-		const options: Array<'first' | 'none' | 'all'> = ['first', 'none', 'all'];
-		const currentIndex = options.indexOf(this.settings.bibleVerseNumberDisplay);
-		const nextIndex = (currentIndex + 1) % options.length;
-		
-		this.settings.bibleVerseNumberDisplay = options[nextIndex];
-		
-		// Apply the new setting to all open Bible notes
+	// Toggle verse number visibility
+	toggleVerseNumbers(): string {
+		this.settings.verseNumbersVisible = !this.settings.verseNumbersVisible;
 		this.applyVerseDisplayToOpenFiles();
+		return this.settings.verseNumbersVisible ? 'Visible' : 'Hidden';
+	}
 
-		// Return display name for the notice
-		const displayNames = {
-			'first': 'First verse only',
-			'none': 'Hidden',
-			'all': 'All verses'
-		};
+	// Set display mode to 'first' and make visible
+	showFirstVerseOnly(): string {
+		this.settings.verseNumbersVisible = true;
+		this.settings.verseNumberDisplayMode = 'first';
+		this.applyVerseDisplayToOpenFiles();
+		return 'First verse only';
+	}
 
-		return displayNames[this.settings.bibleVerseNumberDisplay];
+	// Set display mode to 'all' and make visible
+	showAllVerseNumbers(): string {
+		this.settings.verseNumbersVisible = true;
+		this.settings.verseNumberDisplayMode = 'all';
+		this.applyVerseDisplayToOpenFiles();
+		return 'All verses';
 	}
 }

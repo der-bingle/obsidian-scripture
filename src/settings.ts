@@ -240,17 +240,32 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 			cls: 'setting-item-description'
 		});
 
-		// Global verse number display setting
+		// Verse number visibility setting
 		new Setting(containerEl)
-			.setName('Verse Number Display')
-			.setDesc('How verse numbers are displayed in Bible chapter notes')
+			.setName('Show Verse Numbers')
+			.setDesc('Whether verse numbers are displayed in Bible chapter notes')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.verseNumbersVisible)
+				.onChange(async (value: boolean) => {
+					this.plugin.settings.verseNumbersVisible = value;
+					await this.plugin.saveSettings();
+					
+					// Apply the new setting to currently open Bible notes
+					if (this.plugin.verseDisplayManager) {
+						this.plugin.verseDisplayManager.applyVerseDisplayToOpenFiles();
+					}
+				}));
+
+		// Verse number display mode setting
+		new Setting(containerEl)
+			.setName('Verse Number Display Mode')
+			.setDesc('How verse numbers are displayed when visible')
 			.addDropdown(dropdown => dropdown
 				.addOption('first', 'Show first verse number only')
-				.addOption('none', 'Hide all verse numbers')
 				.addOption('all', 'Show all verse numbers')
-				.setValue(this.plugin.settings.bibleVerseNumberDisplay)
-				.onChange(async (value: 'first' | 'none' | 'all') => {
-					this.plugin.settings.bibleVerseNumberDisplay = value;
+				.setValue(this.plugin.settings.verseNumberDisplayMode)
+				.onChange(async (value: 'first' | 'all') => {
+					this.plugin.settings.verseNumberDisplayMode = value;
 					await this.plugin.saveSettings();
 					
 					// Apply the new setting to currently open Bible notes

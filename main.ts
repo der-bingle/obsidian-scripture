@@ -49,13 +49,35 @@ export default class BibleReferencePlugin extends Plugin {
 			}
 		});
 
-		// Add command to toggle verse numbers in Bible notes
+		// Add command to toggle verse number visibility
 		this.addCommand({
 			id: 'toggle-verse-numbers',
 			name: 'Toggle Verse Numbers',
 			callback: () => {
-				const displayName = this.verseDisplayManager.cycleVerseNumberDisplay();
-				this.saveSettings(); // Save the updated setting
+				const displayName = this.verseDisplayManager.toggleVerseNumbers();
+				this.saveSettings();
+				new Notice(`Verse numbers: ${displayName}`);
+			}
+		});
+
+		// Add command to show first verse only
+		this.addCommand({
+			id: 'show-first-verse-only',
+			name: 'Show First Verse Only',
+			callback: () => {
+				const displayName = this.verseDisplayManager.showFirstVerseOnly();
+				this.saveSettings();
+				new Notice(`Verse numbers: ${displayName}`);
+			}
+		});
+
+		// Add command to show all verse numbers
+		this.addCommand({
+			id: 'show-all-verse-numbers',
+			name: 'Show All Verse Numbers',
+			callback: () => {
+				const displayName = this.verseDisplayManager.showAllVerseNumbers();
+				this.saveSettings();
 				new Notice(`Verse numbers: ${displayName}`);
 			}
 		});
