@@ -46,6 +46,8 @@ export interface BibleVerseData {
 export interface BibleTranslation {
 	name: string;
 	filePath: string;
+	availableAsNotes?: boolean;
+	notesDirectory?: string;
 	isValid?: boolean;
 	errorMessage?: string;
 }
@@ -59,6 +61,7 @@ export interface BibleReferenceSettings {
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
 	calloutFolding: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed';
+	bibleVerseNumberDisplay: 'first' | 'none' | 'all';
 }
 
 // Default settings
@@ -69,7 +72,8 @@ export const DEFAULT_SETTINGS: BibleReferenceSettings = {
 	translationDisplay: 'except-default',
 	linkingStrategy: 'default-translation',
 	includeHiddenLinks: false,
-	calloutFolding: 'not-foldable'
+	calloutFolding: 'not-foldable',
+	bibleVerseNumberDisplay: 'first'
 };
 
 // Modal callback type

@@ -1,8 +1,9 @@
-import { App, Editor, MarkdownView, Plugin, Notice } from 'obsidian';
+import { App, Editor, MarkdownView, Plugin, Notice, WorkspaceLeaf } from 'obsidian';
 import { BibleReferenceModal } from './src/modal';
 import { BibleReferenceSettingTab } from './src/settings';
 import { CalloutFormatter } from './src/callout-formatter';
 import { BibleDataLoader } from './src/bible-data-loader';
+import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import type { BibleReferenceSettings, BibleVerse } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
 
@@ -10,6 +11,7 @@ export default class BibleReferencePlugin extends Plugin {
 	settings: BibleReferenceSettings;
 	private calloutFormatter: CalloutFormatter;
 	private dataLoader: BibleDataLoader;
+	private verseDisplayManager: BibleVerseDisplayManager;
 
 	async onload() {
 		await this.loadSettings();
@@ -17,6 +19,7 @@ export default class BibleReferencePlugin extends Plugin {
 		// Initialize components
 		this.calloutFormatter = new CalloutFormatter(this.settings);
 		this.dataLoader = new BibleDataLoader(this.app);
+		this.verseDisplayManager = new BibleVerseDisplayManager(this.app, this.settings);
 
 		// Add command to open reference modal
 		this.addCommand({
@@ -46,11 +49,52 @@ export default class BibleReferencePlugin extends Plugin {
 			}
 		});
 
+		// Add command to toggle verse numbers in Bible notes
+		this.addCommand({
+			id: 'toggle-verse-numbers',
+			name: 'Toggle Verse Numbers',
+			callback: () => {
+				const displayName = this.verseDisplayManager.cycleVerseNumberDisplay();
+				this.saveSettings(); // Save the updated setting
+				new Notice(`Verse numbers: ${displayName}`);
+			}
+		});
+
+		// Listen for file open events to apply verse display to Bible notes
+		this.registerEvent(
+			this.app.workspace.on('file-open', (file) => {
+				if (file && this.verseDisplayManager.isBibleNote(file)) {
+					// Use setTimeout to ensure the view is fully loaded
+					setTimeout(() => {
+						const activeLeaf = this.app.workspace.activeLeaf;
+						if (activeLeaf) {
+							this.verseDisplayManager.applyVerseDisplayToLeaf(activeLeaf);
+						}
+					}, 100);
+				}
+			})
+		);
+
+		// Listen for layout changes (switching between modes)
+		this.registerEvent(
+			this.app.workspace.on('layout-change', () => {
+				// Apply verse display to any newly opened Bible notes
+				setTimeout(() => {
+					this.verseDisplayManager.applyVerseDisplayToOpenFiles();
+				}, 100);
+			})
+		);
+
 		// Add settings tab
 		this.addSettingTab(new BibleReferenceSettingTab(this.app, this));
 		
 		console.log('Bible Reference Plugin loaded');
 		console.log('Configured translations:', this.settings.translations.map(t => t.name));
+
+		// Apply verse display to any Bible notes that are already open
+		setTimeout(() => {
+			this.verseDisplayManager.applyVerseDisplayToOpenFiles();
+		}, 1000);
 	}
 
 	async onunload() {
@@ -67,13 +111,16 @@ export default class BibleReferencePlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		
-		// Update formatter when settings change
-		this.updateFormatterSettings();
+		// Update components when settings change
+		this.updateComponentSettings();
 	}
 
-	updateFormatterSettings() {
+	private updateComponentSettings() {
 		if (this.calloutFormatter) {
 			this.calloutFormatter.updateSettings(this.settings);
+		}
+		if (this.verseDisplayManager) {
+			this.verseDisplayManager.updateSettings(this.settings);
 		}
 	}
 

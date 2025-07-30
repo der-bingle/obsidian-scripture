@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, ButtonComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, ButtonComponent, ToggleComponent } from 'obsidian';
 import type { BibleReferenceSettings, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
@@ -20,6 +20,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 
 		this.displayTranslationsSection(containerEl);
 		this.displayGeneralSettings(containerEl);
+		this.displayBibleNotesSettings(containerEl);
 	}
 
 	private displayTranslationsSection(containerEl: HTMLElement): void {
@@ -132,7 +133,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 	}
 
 	private displayGeneralSettings(containerEl: HTMLElement): void {
-		containerEl.createEl('h3', { text: 'General Settings' });
+		containerEl.createEl('h3', { text: 'Reference Insertion Settings' });
 
 		// Default translation
 		new Setting(containerEl)
@@ -167,7 +168,6 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onChange(async (value: 'include' | 'exclude' | 'exclude-first') => {
 					this.plugin.settings.verseNumbers = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateFormatterSettings();
 				}));
 
 		// Translation display setting
@@ -182,7 +182,6 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onChange(async (value: 'never' | 'always' | 'except-default') => {
 					this.plugin.settings.translationDisplay = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateFormatterSettings();
 				}));
 
 		// Linking strategy setting
@@ -196,7 +195,6 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onChange(async (value: 'default-translation' | 'verse-translation') => {
 					this.plugin.settings.linkingStrategy = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateFormatterSettings();
 				}));
 
 		// Callout folding setting
@@ -211,7 +209,6 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onChange(async (value: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed') => {
 					this.plugin.settings.calloutFolding = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateFormatterSettings();
 				}));
 
 		// Hidden links setting
@@ -223,7 +220,6 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.includeHiddenLinks = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateFormatterSettings();
 				}));
 
 		// Validate all translations button
@@ -234,6 +230,33 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 				.setButtonText('Validate All')
 				.onClick(async () => {
 					await this.validateAllTranslations();
+				}));
+	}
+
+	private displayBibleNotesSettings(containerEl: HTMLElement): void {
+		containerEl.createEl('h3', { text: 'Bible Notes Display' });
+		containerEl.createEl('p', { 
+			text: 'These settings apply to Bible chapter notes in your vault, not to inserted scripture callouts.',
+			cls: 'setting-item-description'
+		});
+
+		// Global verse number display setting
+		new Setting(containerEl)
+			.setName('Verse Number Display')
+			.setDesc('How verse numbers are displayed in Bible chapter notes')
+			.addDropdown(dropdown => dropdown
+				.addOption('first', 'Show first verse number only')
+				.addOption('none', 'Hide all verse numbers')
+				.addOption('all', 'Show all verse numbers')
+				.setValue(this.plugin.settings.bibleVerseNumberDisplay)
+				.onChange(async (value: 'first' | 'none' | 'all') => {
+					this.plugin.settings.bibleVerseNumberDisplay = value;
+					await this.plugin.saveSettings();
+					
+					// Apply the new setting to currently open Bible notes
+					if (this.plugin.verseDisplayManager) {
+						this.plugin.verseDisplayManager.applyVerseDisplayToOpenFiles();
+					}
 				}));
 	}
 
@@ -265,6 +288,9 @@ class TranslationModal extends Modal {
 	private onSubmit: (translation: BibleTranslation) => void;
 	private nameInput: TextComponent;
 	private pathInput: TextComponent;
+	private availableAsNotesToggle: ToggleComponent;
+	private notesDirectoryInput: TextComponent;
+	private notesDirectorySetting: Setting;
 
 	constructor(app: App, translation: BibleTranslation | null, onSubmit: (translation: BibleTranslation) => void) {
 		super(app);
@@ -300,6 +326,35 @@ class TranslationModal extends Modal {
 					.onChange(() => this.validateForm());
 			});
 
+		// Available as notes toggle
+		new Setting(contentEl)
+			.setName('Available as notes in the vault')
+			.setDesc('Check if this translation has Bible chapter notes in your vault')
+			.addToggle(toggle => {
+				this.availableAsNotesToggle = toggle;
+				toggle
+					.setValue(this.translation?.availableAsNotes || false)
+					.onChange((value) => {
+						this.toggleNotesDirectoryVisibility(value);
+						this.validateForm();
+					});
+			});
+
+		// Notes directory (initially hidden if not available as notes)
+		this.notesDirectorySetting = new Setting(contentEl)
+			.setName('Notes Directory')
+			.setDesc('Path to the directory containing Bible chapter notes (relative to vault root)')
+			.addText(text => {
+				this.notesDirectoryInput = text;
+				text
+					.setPlaceholder('Bible/ESV/')
+					.setValue(this.translation?.notesDirectory || '')
+					.onChange(() => this.validateForm());
+			});
+
+		// Set initial visibility
+		this.toggleNotesDirectoryVisibility(this.translation?.availableAsNotes || false);
+
 		// Buttons
 		const buttonContainer = contentEl.createDiv();
 		buttonContainer.style.display = 'flex';
@@ -320,20 +375,36 @@ class TranslationModal extends Modal {
 		setTimeout(() => this.nameInput.inputEl.focus(), 100);
 	}
 
+	private toggleNotesDirectoryVisibility(show: boolean): void {
+		if (this.notesDirectorySetting) {
+			this.notesDirectorySetting.settingEl.style.display = show ? '' : 'none';
+		}
+	}
+
 	private validateForm(): boolean {
-		// Basic validation - just check if fields are not empty
-		return this.nameInput.getValue().trim() !== '' && this.pathInput.getValue().trim() !== '';
+		const nameValid = this.nameInput.getValue().trim() !== '';
+		const pathValid = this.pathInput.getValue().trim() !== '';
+		
+		// If available as notes is checked, notes directory is required
+		const notesValid = !this.availableAsNotesToggle.getValue() || 
+			this.notesDirectoryInput.getValue().trim() !== '';
+		
+		return nameValid && pathValid && notesValid;
 	}
 
 	private handleSubmit(): void {
 		if (!this.validateForm()) {
-			new Notice('Please fill in all fields');
+			new Notice('Please fill in all required fields');
 			return;
 		}
 
 		const translation: BibleTranslation = {
 			name: this.nameInput.getValue().trim(),
-			filePath: this.pathInput.getValue().trim()
+			filePath: this.pathInput.getValue().trim(),
+			availableAsNotes: this.availableAsNotesToggle.getValue(),
+			notesDirectory: this.availableAsNotesToggle.getValue() 
+				? this.notesDirectoryInput.getValue().trim() 
+				: undefined
 		};
 
 		this.onSubmit(translation);
