@@ -1,8 +1,278 @@
-/*
+/* @settings
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
+name: Bible Reference Plugin
+id: bible-reference-plugin
+settings:
+    -
+        id: bible-display-heading
+        title: Bible Text Display
+        type: heading
+        level: 2
+    -
+        id: bible-gutter-width
+        title: Verse Number Margin Width
+        description: Width of the left margin for verse numbers
+        type: variable-number-slider
+        default: 1.75
+        min: 1
+        max: 3
+        step: 0.25
+        format: em
+    -
+        id: bible-verse-font-size
+        title: Verse Number Size
+        description: Size of verse numbers relative to text
+        type: variable-number-slider
+        default: 0.5
+        min: 0.3
+        max: 0.8
+        step: 0.05
+        format: em
+    -
+        id: bible-verse-color
+        title: Verse Number Color
+        description: Color of verse numbers (uses theme's faint text color by default)
+        type: variable-color
+        format: hex
+        default: '#888888'
+    -
+        id: bible-verse-top-offset
+        title: Verse Number Vertical Position
+        description: Fine-tune the vertical position of verse numbers
+        type: variable-number-slider
+        default: 0.15
+        min: 0
+        max: 0.5
+        step: 0.05
+        format: em
+    -
+        id: bible-heading-indent
+        title: Heading Left Alignment
+        description: Left padding for headings to align with text
+        type: variable-number-slider
+        default: 0.875
+        min: 0.5
+        max: 1.5
+        step: 0.125
+        format: em
+    -
+        id: typography-heading
+        title: Typography
+        type: heading
+        level: 3
+    -
+        id: bible-chapter-heading-font
+        title: Chapter Heading Font Family
+        description: Font family for introductory chapter notes (mainly Psalms)
+        type: variable-text
+        default: "Equity Caps A", serif
+        quotes: true
+    -
+        id: bible-chapter-heading-size
+        title: Chapter Heading Size
+        description: Font size for chapter headings
+        type: variable-number-slider
+        default: 0.75
+        min: 0.5
+        max: 1.2
+        step: 0.05
+        format: em
+    -
+        id: bible-text-justify
+        title: Justify Text
+        description: Whether to justify Bible text
+        type: class-toggle
+        default: true
 
 */
+
+/* CSS Variables */
+:root {
+    --bible-gutter-width: 1.75em;
+    --bible-verse-font-size: 0.5em;
+    --bible-verse-color: var(--text-faint);
+    --bible-verse-top-offset: 0.15em;
+    --bible-heading-indent: 0.875em;
+    --bible-chapter-heading-font: "Equity Caps A", serif;
+    --bible-chapter-heading-size: 0.75em;
+}
+
+/* ‼️ HIDE THE VERSES SECTION */
+.bible h6,
+.bible .HyperMD-header-6 {
+    display: none !important;
+}
+
+/* ‼️ INTRODUCTORY CHAPTER NOTES (mainly Psalms) */
+.bible .chapter-heading {
+    font-family: var(--bible-chapter-heading-font);
+    font-size: var(--bible-chapter-heading-size);
+    color: var(--text-muted);
+}
+
+/* ‼️ TEXT ALIGNMENT */
+.bible p,
+.bible .cm-line {
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+/* Optional: disable text justification */
+body:not(.bible-text-justify) .bible p,
+body:not(.bible-text-justify) .bible .cm-line {
+    text-align: left;
+}
+
+/* ‼️ ALIGN HEADINGS WITH TEXT */
+.bible h1,
+.bible .cm-header-1,
+.bible h2,
+.bible h3,
+.bible h4,
+.bible h5,
+.bible h6 {
+    padding-left: var(--bible-heading-indent) !important;
+}
+
+/* ‼️ BASIC VERSE NUMBER STYLING */
+.bible sup {
+    font-size: var(--bible-verse-font-size);
+    color: var(--bible-verse-color);
+}
+
+/* ‼️ LAYOUT SPACING */
+
+/* create gutter spacing - but not for headers */
+.bible .cm-line:not(.HyperMD-header) {
+    position: relative;
+    padding-left: var(--bible-gutter-width) !important;
+}
+
+/* Reading mode: create gutter spacing for paragraphs */
+.bible p {
+    position: relative;
+    padding-left: var(--bible-gutter-width) !important;
+}
+
+/* ‼️ OPTION 1: HIDE ALL VERSE NUMBERS */
+.bible-numbers-none sup {
+    display: none !important;
+}
+
+/* ‼️ OPTION 2: SHOW ONLY FIRST VERSE NUMBER (DEFAULT) */
+
+/* Live Preview mode selectors */
+.bible-numbers-first .cm-line .cm-html-embed:has(sup),
+.bible:not(.bible-numbers-none):not(.bible-numbers-all)
+    .cm-line
+    .cm-html-embed:has(sup) {
+    position: absolute;
+    left: 0;
+    top: var(--bible-verse-top-offset);
+    width: 2em;
+    text-align: right;
+    padding-right: 0.4em;
+}
+
+/* Reading mode selectors */
+.bible-numbers-first p sup:first-of-type,
+.bible:not(.bible-numbers-none):not(.bible-numbers-all) p sup:first-of-type {
+    position: absolute;
+    left: 0;
+    top: var(--bible-verse-top-offset);
+    width: 2em;
+    text-align: right;
+    padding-right: 0.4em;
+}
+
+/* hide all but first verse number using adjacent sibling selector - Live Preview */
+.bible-numbers-first .cm-line .cm-html-embed:has(sup) ~ .cm-html-embed:has(sup),
+.bible:not(.bible-numbers-none):not(.bible-numbers-all)
+    .cm-line
+    .cm-html-embed:has(sup)
+    ~ .cm-html-embed:has(sup) {
+    display: none;
+}
+
+/* hide all but first verse number - Reading mode */
+.bible-numbers-first p sup:not(:first-of-type),
+.bible:not(.bible-numbers-none):not(.bible-numbers-all) p sup:not(:first-of-type) {
+    display: none;
+}
+
+/* ‼️ OPTION 3: SHOW ALL VERSE NUMBERS */
+
+/* Live Preview mode */
+.bible-numbers-all .cm-line .cm-html-embed:has(sup):first-of-type {
+    position: absolute;
+    left: 0;
+    top: var(--bible-verse-top-offset);
+    width: 2em;
+    text-align: right;
+    padding-right: 0.4em;
+}
+
+/* Reading mode - ALL verse numbers positioned in margin */
+.bible-numbers-all p sup {
+    position: absolute;
+    left: 0;
+    width: 2em;
+    text-align: right;
+    padding-right: 0.4em;
+    font-size: var(--bible-verse-font-size);
+    color: var(--bible-verse-color);
+}
+
+/* For prose (non-poetry), keep subsequent verse numbers inline after first */
+.bible-numbers-all:not(.bible-poetry) p sup:not(:first-of-type) {
+    position: static;
+    width: auto;
+    text-align: inherit;
+    padding-right: 0;
+    margin: 0 0.2em;
+}
+
+/* subsequent verse numbers in bible-numbers-all stay inline with smaller styling - Live Preview */
+.bible-numbers-all .cm-line .cm-html-embed:has(sup):not(:first-of-type) sup {
+    font-size: var(--bible-verse-font-size);
+    color: var(--bible-verse-color);
+    margin: 0 0.2em;
+}
+
+/* In poetry, only show verse numbers that start a new verse (not continuation lines) - Live Preview */
+.bible-poetry.bible-numbers-first .cm-line:has(.cm-html-embed:has(sup)) + .cm-line .cm-html-embed:has(sup) {
+    display: none !important;
+}
+
+/* But allow them to show again after a gap (new verse) - Live Preview */
+.bible-poetry.bible-numbers-first .cm-line:not(:has(.cm-html-embed:has(sup))) + .cm-line .cm-html-embed:has(sup) {
+    display: block !important;
+}
+
+/* Poetry verse numbering for Reading mode - this is more complex since we need to handle line breaks within paragraphs */
+.bible-poetry.bible-numbers-first p {
+    /* For poetry in reading mode, we need different handling since verse numbers and line breaks are within the same paragraph */
+}
+
+/* Alternative approach for poetry in Reading mode: target specific patterns */
+.bible-poetry.bible-numbers-first p sup ~ br + sup {
+    display: none !important;
+}
+
+/* ‼️ NOTE TOOLBAR */
+.callout[data-callout="note-toolbar"].scripture {
+    --cg-nt-item-icon-size: 25px;
+}
+
+.callout[data-callout="note-toolbar"].scripture ul {
+    padding-left: 1.85em !important;
+    padding-right: 1.85em !important;
+    align-items: center;
+}
+
+.callout[data-callout="note-toolbar"].scripture .cg-note-toolbar-item-label {
+    font-family: "Concourse C6", sans;
+    font-size: 2.25em;
+    text-transform: uppercase;
+    color: var(--color-red);
+}
