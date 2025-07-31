@@ -65,7 +65,7 @@ settings:
         title: Chapter Heading Font Family
         description: Font family for introductory chapter notes (mainly Psalms)
         type: variable-text
-        default: "Equity Caps A", serif
+        default: "Equity Caps A"
         quotes: true
     -
         id: bible-chapter-heading-size
