@@ -1,0 +1,225 @@
+import { App, TFile, SuggestModal, Notice, KeymapEventHandler } from 'obsidian';
+import type { BibleReferenceSettings, BibleTranslation } from './types';
+
+interface TranslationOption {
+	translation: BibleTranslation;
+	isCurrent: boolean;
+}
+
+export class BibleChapterNavigator {
+	private app: App;
+	private settings: BibleReferenceSettings;
+
+	constructor(app: App, settings: BibleReferenceSettings) {
+		this.app = app;
+		this.settings = settings;
+	}
+
+	updateSettings(settings: BibleReferenceSettings): void {
+		this.settings = settings;
+	}
+
+	/**
+	 * Check if there's currently a Bible chapter note open
+	 */
+	canNavigate(): boolean {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return false;
+
+		return this.isBibleChapterNote(activeFile);
+	}
+
+	/**
+	 * Open the translation selector modal
+	 */
+	openTranslationSelector(): void {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile || !this.isBibleChapterNote(activeFile)) {
+			new Notice('No Bible chapter note is currently open');
+			return;
+		}
+
+		const availableTranslations = this.getAvailableTranslations(activeFile);
+		if (availableTranslations.length === 0) {
+			new Notice('No other translations with notes are available');
+			return;
+		}
+
+		new TranslationSelectorModal(this.app, availableTranslations, (option, evt) => {
+			this.navigateToTranslation(activeFile, option.translation, evt);
+		}).open();
+	}
+
+	/**
+	 * Check if a file is a Bible chapter note
+	 */
+	private isBibleChapterNote(file: TFile): boolean {
+		if (!file.path) return false;
+
+		return this.settings.translations.some(translation => {
+			if (!translation.availableAsNotes || !translation.notesDirectory) {
+				return false;
+			}
+
+			// Check if file is within this translation's notes directory (including subdirectories)
+			const normalizedDir = translation.notesDirectory.endsWith('/') 
+				? translation.notesDirectory 
+				: translation.notesDirectory + '/';
+
+			return file.path.startsWith(normalizedDir);
+		});
+	}
+
+	/**
+	 * Get the current translation for a Bible chapter note
+	 */
+	private getCurrentTranslation(file: TFile): BibleTranslation | null {
+		return this.settings.translations.find(translation => {
+			if (!translation.availableAsNotes || !translation.notesDirectory) {
+				return false;
+			}
+
+			const normalizedDir = translation.notesDirectory.endsWith('/') 
+				? translation.notesDirectory 
+				: translation.notesDirectory + '/';
+
+			return file.path.startsWith(normalizedDir);
+		}) || null;
+	}
+
+	/**
+	 * Get available translations that have notes (excluding current one)
+	 */
+	private getAvailableTranslations(currentFile: TFile): TranslationOption[] {
+		const currentTranslation = this.getCurrentTranslation(currentFile);
+		
+		return this.settings.translations
+			.filter(translation => translation.availableAsNotes && translation.notesDirectory)
+			.map(translation => ({
+				translation,
+				isCurrent: currentTranslation?.name === translation.name
+			}));
+	}
+
+	/**
+	 * Navigate to the same chapter in a different translation
+	 */
+	private async navigateToTranslation(currentFile: TFile, targetTranslation: BibleTranslation, evt?: MouseEvent | KeyboardEvent): Promise<void> {
+		// Get the current file's ID from frontmatter
+		const cache = this.app.metadataCache.getFileCache(currentFile);
+		const currentId = cache?.frontmatter?.id;
+
+		if (!currentId) {
+			new Notice('Current file has no ID in frontmatter');
+			return;
+		}
+
+		// Find the matching file in the target translation
+		const targetFile = await this.findFileByIdInTranslation(currentId, targetTranslation);
+		
+		if (!targetFile) {
+			new Notice(`Chapter not found in ${targetTranslation.fullName}`);
+			return;
+		}
+
+		// Open the file with modifier key handling
+		const openInNewTab = evt && (evt.ctrlKey || evt.metaKey);
+		const openInNewPane = evt && (evt.ctrlKey || evt.metaKey) && evt.shiftKey;
+
+		if (openInNewPane) {
+			this.app.workspace.splitActiveLeaf().openFile(targetFile);
+		} else if (openInNewTab) {
+			this.app.workspace.openLinkText(targetFile.path, '', true);
+		} else {
+			this.app.workspace.openLinkText(targetFile.path, '');
+		}
+	}
+
+	/**
+	 * Find a file with matching ID in the target translation's directory
+	 */
+	private async findFileByIdInTranslation(targetId: string, translation: BibleTranslation): Promise<TFile | null> {
+		if (!translation.notesDirectory) return null;
+
+		// Get all markdown files
+		const allFiles = this.app.vault.getMarkdownFiles();
+		
+		// Filter to files in the translation's notes directory (including subdirectories)
+		const normalizedDir = translation.notesDirectory.endsWith('/') 
+			? translation.notesDirectory 
+			: translation.notesDirectory + '/';
+
+		const translationFiles = allFiles.filter(file => 
+			file.path.startsWith(normalizedDir)
+		);
+
+		// Search for file with matching ID
+		for (const file of translationFiles) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			const fileId = cache?.frontmatter?.id;
+			
+			if (fileId === targetId) {
+				return file;
+			}
+		}
+
+		return null;
+	}
+}
+
+class TranslationSelectorModal extends SuggestModal<TranslationOption> {
+	private options: TranslationOption[];
+	private onSelect: (option: TranslationOption, evt?: MouseEvent | KeyboardEvent) => void;
+
+	constructor(app: App, options: TranslationOption[], onSelect: (option: TranslationOption, evt?: MouseEvent | KeyboardEvent) => void) {
+		super(app);
+		this.options = options;
+		this.onSelect = onSelect;
+		
+		this.setPlaceholder('Select translation to open...');
+	}
+
+	getSuggestions(query: string): TranslationOption[] {
+		const lowerQuery = query.toLowerCase();
+		
+		return this.options.filter(option => 
+			option.translation.fullName.toLowerCase().includes(lowerQuery) ||
+			option.translation.name.toLowerCase().includes(lowerQuery)
+		);
+	}
+
+	renderSuggestion(option: TranslationOption, el: HTMLElement): void {
+		// Create a container with flexbox layout
+		const container = el.createEl('div', {
+			cls: option.isCurrent ? 'is-selected' : ''
+		});
+		container.style.display = 'flex';
+		container.style.alignItems = 'center';
+		container.style.gap = '8px';
+		
+		// Add checkmark for current translation (on the left)
+		if (option.isCurrent) {
+			const checkmark = container.createEl('span', { 
+				text: '✓',
+				cls: 'bible-current-translation-indicator'
+			});
+			checkmark.style.color = 'var(--text-accent)';
+			checkmark.style.fontWeight = 'bold';
+			checkmark.style.flexShrink = '0';
+		} else {
+			// Add empty space to maintain alignment
+			const spacer = container.createEl('span', { text: '' });
+			spacer.style.width = '16px';
+			spacer.style.flexShrink = '0';
+		}
+		
+		// Add the translation name
+		container.createEl('span', { 
+			text: option.translation.fullName
+		});
+	}
+
+	onChooseSuggestion(option: TranslationOption, evt: MouseEvent | KeyboardEvent): void {
+		this.onSelect(option, evt);
+	}
+}

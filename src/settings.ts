@@ -74,7 +74,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 
 		this.plugin.settings.translations.forEach((translation: BibleTranslation, index: number) => {
 			const setting = new Setting(container)
-				.setName(translation.name)
+				.setName(translation.fullName || translation.name)
 				.setDesc(translation.filePath);
 
 			// Add validation status
@@ -144,7 +144,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 					dropdown.addOption('', 'No translations configured');
 				} else {
 					this.plugin.settings.translations.forEach((translation: BibleTranslation) => {
-						dropdown.addOption(translation.name, translation.name);
+						dropdown.addOption(translation.name, translation.fullName || translation.name);
 					});
 				}
 				
@@ -302,6 +302,7 @@ class TranslationModal extends Modal {
 	private translation: BibleTranslation | null;
 	private onSubmit: (translation: BibleTranslation) => void;
 	private nameInput: TextComponent;
+	private fullNameInput: TextComponent;
 	private pathInput: TextComponent;
 	private availableAsNotesToggle: ToggleComponent;
 	private notesDirectoryInput: TextComponent;
@@ -326,6 +327,18 @@ class TranslationModal extends Modal {
 				text
 					.setPlaceholder('ESV')
 					.setValue(this.translation?.name || '')
+					.onChange(() => this.validateForm());
+			});
+
+		// Translation full name
+		new Setting(contentEl)
+			.setName('Full Name')
+			.setDesc('The full name of this translation (e.g., English Standard Version (ESV))')
+			.addText(text => {
+				this.fullNameInput = text;
+				text
+					.setPlaceholder('English Standard Version (ESV)')
+					.setValue(this.translation?.fullName || '')
 					.onChange(() => this.validateForm());
 			});
 
@@ -398,13 +411,14 @@ class TranslationModal extends Modal {
 
 	private validateForm(): boolean {
 		const nameValid = this.nameInput.getValue().trim() !== '';
+		const fullNameValid = this.fullNameInput.getValue().trim() !== '';
 		const pathValid = this.pathInput.getValue().trim() !== '';
 		
 		// If available as notes is checked, notes directory is required
 		const notesValid = !this.availableAsNotesToggle.getValue() || 
 			this.notesDirectoryInput.getValue().trim() !== '';
 		
-		return nameValid && pathValid && notesValid;
+		return nameValid && fullNameValid && pathValid && notesValid;
 	}
 
 	private handleSubmit(): void {
@@ -415,6 +429,7 @@ class TranslationModal extends Modal {
 
 		const translation: BibleTranslation = {
 			name: this.nameInput.getValue().trim(),
+			fullName: this.fullNameInput.getValue().trim(),
 			filePath: this.pathInput.getValue().trim(),
 			availableAsNotes: this.availableAsNotesToggle.getValue(),
 			notesDirectory: this.availableAsNotesToggle.getValue() 

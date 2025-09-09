@@ -45,6 +45,7 @@ export interface BibleVerseData {
 // Translation configuration
 export interface BibleTranslation {
 	name: string;
+	fullName: string;
 	filePath: string;
 	availableAsNotes?: boolean;
 	notesDirectory?: string;
@@ -80,3 +81,49 @@ export const DEFAULT_SETTINGS: BibleReferenceSettings = {
 
 // Modal callback type
 export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string) => void;
+
+// Public API interface for plugin interoperability
+export interface BibleReferenceAPI {
+	/**
+	 * Get the currently configured primary/default translation ID
+	 * @returns The translation ID string, or empty string if none configured
+	 */
+	getPrimaryTranslation(): string;
+
+	/**
+	 * Get all configured Bible translations
+	 * @returns Array of all configured translations
+	 */
+	getAvailableTranslations(): BibleTranslation[];
+
+	/**
+	 * Get settings for a specific translation
+	 * @param translationId - The translation ID to look up
+	 * @returns Translation object if found, null otherwise
+	 */
+	getTranslationSettings(translationId: string): BibleTranslation | null;
+
+	/**
+	 * Format a verse reference into proper Obsidian link format
+	 * @param book - Book name or abbreviation
+	 * @param chapter - Chapter number
+	 * @param verse - Optional verse number
+	 * @param translation - Optional translation ID (uses primary if not provided)
+	 * @returns Formatted Obsidian link string
+	 */
+	formatVerseReference(book: string, chapter: number, verse?: number, translation?: string): string;
+
+	/**
+	 * Parse scripture references from text
+	 * @param text - Text to parse for scripture references
+	 * @returns Object with parsed reference and detected translation
+	 */
+	parseScriptureReference(text: string): { reference: string; translation: string | null };
+
+	/**
+	 * Normalize book name variations and abbreviations to standard form
+	 * @param bookName - Book name or abbreviation to normalize
+	 * @returns Normalized book name, or original if not recognized
+	 */
+	normalizeBookName(bookName: string): string;
+}

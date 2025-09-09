@@ -1,4 +1,4 @@
-import { App, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, TFile, WorkspaceLeaf, MarkdownView } from 'obsidian';
 import type { BibleReferenceSettings } from './types';
 
 export class BibleVerseDisplayManager {
@@ -19,9 +19,11 @@ export class BibleVerseDisplayManager {
 		const leaves = this.app.workspace.getLeavesOfType('markdown');
 		
 		leaves.forEach(leaf => {
-			const file = leaf.view?.file;
-			if (file && this.isBibleNote(file)) {
-				this.applyVerseDisplayToLeaf(leaf);
+			if (leaf.view instanceof MarkdownView && leaf.view.file) {
+				const file = leaf.view.file;
+				if (this.isBibleNote(file)) {
+					this.applyVerseDisplayToLeaf(leaf);
+				}
 			}
 		});
 	}

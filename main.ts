@@ -4,7 +4,8 @@ import { BibleReferenceSettingTab } from './src/settings';
 import { CalloutFormatter } from './src/callout-formatter';
 import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
-import type { BibleReferenceSettings, BibleVerse } from './src/types';
+import { BibleChapterNavigator } from './src/bible-chapter-navigator';
+import type { BibleReferenceSettings, BibleVerse, BibleReferenceAPI, BibleTranslation } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
 
 export default class BibleReferencePlugin extends Plugin {
@@ -12,6 +13,8 @@ export default class BibleReferencePlugin extends Plugin {
 	private calloutFormatter: CalloutFormatter;
 	private dataLoader: BibleDataLoader;
 	private verseDisplayManager: BibleVerseDisplayManager;
+	private chapterNavigator: BibleChapterNavigator;
+	public api: BibleReferenceAPI;
 
 	async onload() {
 		await this.loadSettings();
@@ -20,6 +23,7 @@ export default class BibleReferencePlugin extends Plugin {
 		this.calloutFormatter = new CalloutFormatter(this.settings);
 		this.dataLoader = new BibleDataLoader(this.app);
 		this.verseDisplayManager = new BibleVerseDisplayManager(this.app, this.settings);
+		this.chapterNavigator = new BibleChapterNavigator(this.app, this.settings);
 
 		// Add command to open reference modal
 		this.addCommand({
@@ -46,6 +50,23 @@ export default class BibleReferencePlugin extends Plugin {
 						this.insertScriptureCallout(editor, reference, verses, translation);
 					}
 				).open();
+			}
+		});
+
+		// Add command to navigate between Bible chapter translations
+		this.addCommand({
+			id: 'open-chapter-in-translation',
+			name: 'Open Chapter in Other Translation',
+			icon: 'book-open',
+			checkCallback: (checking: boolean) => {
+				// Only enable command when a Bible chapter note is open
+				if (this.chapterNavigator.canNavigate()) {
+					if (!checking) {
+						this.chapterNavigator.openTranslationSelector();
+					}
+					return true;
+				}
+				return false;
 			}
 		});
 
@@ -117,9 +138,19 @@ export default class BibleReferencePlugin extends Plugin {
 		setTimeout(() => {
 			this.verseDisplayManager.applyVerseDisplayToOpenFiles();
 		}, 1000);
+
+		// Initialize and expose the public API
+		this.initializeAPI();
+		
+		// Log API availability for verification
+		console.log('Bible Reference Plugin API exposed at app.plugins.plugins["bible-reference"].api');
 	}
 
 	async onunload() {
+		// Clean up API reference
+		if ((this.app as any).plugins?.plugins?.['bible-reference']?.api) {
+			delete (this.app as any).plugins.plugins['bible-reference'].api;
+		}
 		console.log('Bible Reference Plugin unloaded');
 	}
 
@@ -143,6 +174,9 @@ export default class BibleReferencePlugin extends Plugin {
 		}
 		if (this.verseDisplayManager) {
 			this.verseDisplayManager.updateSettings(this.settings);
+		}
+		if (this.chapterNavigator) {
+			this.chapterNavigator.updateSettings(this.settings);
 		}
 	}
 
@@ -208,6 +242,151 @@ export default class BibleReferencePlugin extends Plugin {
 		return { reference: text.trim(), translation: null };
 	}
 
+	/**
+	 * Initialize and expose the public API for other plugins to use
+	 * 
+	 * Usage example:
+	 * ```javascript
+	 * const bibleAPI = app.plugins.plugins['bible-reference'].api;
+	 * if (bibleAPI) {
+	 *   const primary = bibleAPI.getPrimaryTranslation();
+	 *   const link = bibleAPI.formatVerseReference("John", 3, 16);
+	 *   console.log(`Primary translation: ${primary}, Link: ${link}`);
+	 * }
+	 * ```
+	 */
+	private initializeAPI(): void {
+		this.api = {
+			getPrimaryTranslation: this.getPrimaryTranslation.bind(this),
+			getAvailableTranslations: this.getAvailableTranslations.bind(this),
+			getTranslationSettings: this.getTranslationSettings.bind(this),
+			formatVerseReference: this.formatVerseReference.bind(this),
+			parseScriptureReference: this.parseScriptureReference.bind(this),
+			normalizeBookName: this.normalizeBookName.bind(this)
+		};
+
+		// Expose API on the global app object
+		if (!(this.app as any).plugins) {
+			(this.app as any).plugins = {};
+		}
+		if (!(this.app as any).plugins.plugins) {
+			(this.app as any).plugins.plugins = {};
+		}
+		if (!(this.app as any).plugins.plugins['bible-reference']) {
+			(this.app as any).plugins.plugins['bible-reference'] = this;
+		}
+		(this.app as any).plugins.plugins['bible-reference'].api = this.api;
+	}
+
+	/**
+	 * Get the currently configured primary/default translation ID
+	 */
+	private getPrimaryTranslation(): string {
+		if (!this.settings || !this.settings.defaultTranslation) {
+			return '';
+		}
+		return this.settings.defaultTranslation;
+	}
+
+	/**
+	 * Get all configured Bible translations
+	 */
+	private getAvailableTranslations(): BibleTranslation[] {
+		if (!this.settings || !this.settings.translations) {
+			return [];
+		}
+		return [...this.settings.translations]; // Return a copy to prevent external modification
+	}
+
+	/**
+	 * Get settings for a specific translation
+	 */
+	private getTranslationSettings(translationId: string): BibleTranslation | null {
+		if (!this.settings || !this.settings.translations || !translationId) {
+			return null;
+		}
+		
+		const found = this.settings.translations.find(t => t.name === translationId);
+		return found ? { ...found } : null; // Return a copy to prevent external modification
+	}
+
+	/**
+	 * Format a verse reference into proper Obsidian link format
+	 */
+	private formatVerseReference(book: string, chapter: number, verse?: number, translation?: string): string {
+		if (!book || !chapter) {
+			return '';
+		}
+
+		// Use provided translation or fall back to primary translation
+		const targetTranslation = translation || this.getPrimaryTranslation();
+		if (!targetTranslation) {
+			return '';
+		}
+
+		// Get the translation settings to determine if it has notes available
+		const translationSettings = this.getTranslationSettings(targetTranslation);
+		if (!translationSettings) {
+			return '';
+		}
+
+		// Normalize the book name if possible
+		const normalizedBook = this.normalizeBookName(book);
+
+		// Format the reference based on whether we have verse number
+		let reference: string;
+		if (verse) {
+			reference = `${normalizedBook} ${chapter}:${verse}`;
+		} else {
+			reference = `${normalizedBook} ${chapter}`;
+		}
+
+		// If translation has notes available, create a link to the chapter note
+		if (translationSettings.availableAsNotes && translationSettings.notesDirectory) {
+			const notesDir = translationSettings.notesDirectory.endsWith('/') 
+				? translationSettings.notesDirectory 
+				: translationSettings.notesDirectory + '/';
+			
+			if (verse) {
+				// Link to chapter with verse anchor
+				return `[[${notesDir}${normalizedBook} ${chapter}#${verse}]]`;
+			} else {
+				// Link to chapter
+				return `[[${notesDir}${normalizedBook} ${chapter}]]`;
+			}
+		} else {
+			// Return formatted reference without link if no notes available
+			return reference;
+		}
+	}
+
+	/**
+	 * Parse scripture references from text using existing plugin functionality
+	 */
+	private parseScriptureReference(text: string): { reference: string; translation: string | null } {
+		if (!text || text.trim() === '') {
+			return { reference: '', translation: null };
+		}
+
+		// Use the existing parseReferenceAndTranslation method
+		return this.parseReferenceAndTranslation(text);
+	}
+
+	/**
+	 * Normalize book name variations and abbreviations to standard form
+	 */
+	private normalizeBookName(bookName: string): string {
+		if (!bookName || bookName.trim() === '') {
+			return bookName;
+		}
+
+		// For now, return the book name as-is since the plugin doesn't have 
+		// a comprehensive book name normalization system implemented yet.
+		// This could be enhanced to use the bible-references library or 
+		// create a book name mapping table.
+		return bookName.trim();
+	}
+
 	private async migrateOldSettings() {
 		// Check if we have old single-translation settings to migrate
 		const oldSettings = this.settings as any;
@@ -218,6 +397,7 @@ export default class BibleReferencePlugin extends Plugin {
 			// Create a translation entry from old settings
 			const translation = {
 				name: oldSettings.defaultVersion || 'Default',
+				fullName: oldSettings.defaultVersion || 'Default',
 				filePath: oldSettings.bibleDataPath
 			};
 			
