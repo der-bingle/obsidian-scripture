@@ -1,94 +1,150 @@
-# Obsidian Sample Plugin
+# Scripture Plugin for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A comprehensive scripture study plugin for Obsidian that provides reference insertion, translation management, and Bible note formatting capabilities.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+### 📖 Scripture Reference Insertion
+- **Quick Reference Modal**: Insert scripture references with a modal interface
+- **Smart Text Detection**: Automatically detects Bible references in selected text
+- **Multiple Translations**: Support for multiple Bible translations with easy switching
+- **Formatted Callouts**: Creates beautifully formatted scripture callouts with proper formatting
 
-## First time developing plugins?
+### 🔄 Translation Management  
+- **Multiple Translation Support**: Configure and manage multiple Bible translations
+- **Translation Validation**: Built-in validation to ensure Bible data files are properly formatted
+- **Default Translation Setting**: Set your preferred default translation
+- **Translation-Specific Linking**: Choose linking strategies for different translations
 
-Quick starting guide for new plugin devs:
+### 📝 Bible Note Integration
+- **Chapter Navigation**: Navigate between the same chapter in different translations
+- **Verse Number Display**: Control verse number visibility and display modes
+- **Bible Note Detection**: Automatically applies styling to Bible chapter notes in your vault
+- **Customizable Display**: Toggle between showing all verse numbers, first only, or none
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### 🎨 Formatting Options
+- **Verse Number Control**: Include, exclude, or show all but first verse numbers
+- **Translation Display**: Choose when to show translation names in callouts
+- **Callout Folding**: Configure whether scripture callouts are foldable
+- **Hidden Links**: Add individual verse links for multi-verse passages
+- **Linking Strategies**: Link to default translation or verse-specific translation
 
-## Releasing new releases
+## Commands
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+- **Insert Scripture Reference** (`insert-scripture-reference`): Open the reference insertion modal
+- **Open Chapter in Other Translation** (`open-chapter-in-translation`): Navigate between translations (available when Bible chapter note is open)  
+- **Toggle Verse Numbers** (`toggle-verse-numbers`): Toggle verse number visibility
+- **Show First Verse Only** (`show-first-verse-only`): Display first verse numbers only
+- **Show All Verse Numbers** (`show-all-verse-numbers`): Display all verse numbers
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## Installation
 
-## Adding your plugin to the community plugin list
+### Manual Installation
+1. Download the latest release from the [releases page](https://github.com/yourusername/obsidian-scripture/releases)
+2. Extract the files to your vault's `.obsidian/plugins/scripture/` directory
+3. Reload Obsidian and enable the Scripture plugin in settings
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### For Development
+1. Clone this repository to your vault's `.obsidian/plugins/` directory
+2. Run `npm install` to install dependencies
+3. Run `npm run dev` for development or `npm run build` for production
+4. Reload Obsidian and enable the plugin
 
-## How to use
+## Configuration
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### Adding Bible Translations
+1. Go to Settings → Scripture → Bible Translations
+2. Click "Add Translation"
+3. Configure:
+   - **Translation Name**: Short name (e.g., ESV, NIV)
+   - **Full Name**: Complete name (e.g., English Standard Version)  
+   - **File Path**: Path to your Bible JSON data file
+   - **Available as Notes**: Check if you have Bible chapter notes in your vault
+   - **Notes Directory**: Directory containing your Bible chapter notes
 
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+### Bible Data Format
+Bible data files should be in JSON format with the following structure:
 
 ```json
 {
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
+  "translation": "ESV",
+  "books": [
+    {
+      "id": "GEN",
+      "title": "Genesis",
+      "chapters": [
+        {
+          "chapter": 1,
+          "verses": [
+            {
+              "id": "GEN.1.1",
+              "book": "Genesis",
+              "chapter": 1,
+              "verse": 1,
+              "content": ["In the beginning, God created the heavens and the earth."],
+              "newParagraph": true,
+              "poetry": false
+            }
+          ]
+        }
+      ]
     }
+  ]
 }
 ```
 
-## API Documentation
+## Public API
 
-See https://github.com/obsidianmd/obsidian-api
+The plugin exposes a public API for other plugins to use:
+
+```javascript
+const scriptureAPI = app.plugins.plugins['scripture'].api;
+
+if (scriptureAPI) {
+  // Get primary translation object
+  const primary = scriptureAPI.getPrimaryTranslation();
+  
+  // Get all available translations
+  const translations = scriptureAPI.getAvailableTranslations();
+  
+  // Get specific translation settings  
+  const esv = scriptureAPI.getTranslationSettings('ESV');
+  
+  // Format verse references as Obsidian links
+  const link = scriptureAPI.formatVerseReference("John", 3, 16, "ESV");
+  
+  // Parse scripture references from text
+  const parsed = scriptureAPI.parseScriptureReference("John 3:16 ESV");
+  
+  // Normalize book names
+  const normalized = scriptureAPI.normalizeBookName("1 Cor");
+}
+```
+
+## Styling and Customization
+
+The plugin includes comprehensive CSS styling for Bible notes with Style Settings integration. Customize:
+
+- Verse number appearance and positioning
+- Typography and font settings  
+- Text justification
+- Heading alignment
+- Margin and spacing
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you find this plugin helpful, consider supporting its development:
+- [Buy Me a Coffee](https://buymeacoffee.com/yourusername)
+- [GitHub Sponsors](https://github.com/sponsors/yourusername)
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines and submit pull requests to the main repository.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
