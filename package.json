@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-bible-reference",
+	"name": "obsidian-scripture",
 	"version": "1.0.0",
-	"description": "Insert Bible verses as formatted callouts with reference lookup from JSON data",
+	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -11,9 +11,11 @@
 	"keywords": [
 		"obsidian",
 		"plugin",
-		"bible",
 		"scripture",
-		"reference"
+		"bible",
+		"reference",
+		"study",
+		"theology"
 	],
 	"author": "Your Name",
 	"license": "MIT",

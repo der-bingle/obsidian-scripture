@@ -1,10 +1,10 @@
 import { Editor } from 'obsidian';
-import type { BibleVerse, BibleReferenceSettings } from './types';
+import type { BibleVerse, ScriptureSettings } from './types';
 
 export class CalloutFormatter {
-	private settings: BibleReferenceSettings;
+	private settings: ScriptureSettings;
 	
-	constructor(settings: BibleReferenceSettings) {
+	constructor(settings: ScriptureSettings) {
 		this.settings = settings;
 	}
 
@@ -182,7 +182,7 @@ export class CalloutFormatter {
 			.join('\n');
 	}
 
-	updateSettings(settings: BibleReferenceSettings): void {
+	updateSettings(settings: ScriptureSettings): void {
 		this.settings = settings;
 	}
 

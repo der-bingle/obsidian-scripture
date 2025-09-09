@@ -1,20 +1,20 @@
 import { App, Editor, MarkdownView, Plugin, Notice, WorkspaceLeaf } from 'obsidian';
-import { BibleReferenceModal } from './src/modal';
-import { BibleReferenceSettingTab } from './src/settings';
+import { ScriptureModal } from './src/modal';
+import { ScriptureSettingTab } from './src/settings';
 import { CalloutFormatter } from './src/callout-formatter';
 import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import { BibleChapterNavigator } from './src/bible-chapter-navigator';
-import type { BibleReferenceSettings, BibleVerse, BibleReferenceAPI, BibleTranslation } from './src/types';
+import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
 
-export default class BibleReferencePlugin extends Plugin {
-	settings: BibleReferenceSettings;
+export default class Scripture extends Plugin {
+	settings: ScriptureSettings;
 	private calloutFormatter: CalloutFormatter;
 	private dataLoader: BibleDataLoader;
 	private verseDisplayManager: BibleVerseDisplayManager;
 	private chapterNavigator: BibleChapterNavigator;
-	public api: BibleReferenceAPI;
+	public api: ScriptureAPI;
 
 	async onload() {
 		await this.loadSettings();
@@ -27,8 +27,8 @@ export default class BibleReferencePlugin extends Plugin {
 
 		// Add command to open reference modal
 		this.addCommand({
-			id: 'insert-bible-reference',
-			name: 'Insert Bible Reference',
+			id: 'insert-scripture-reference',
+			name: 'Insert Scripture Reference',
 			icon: 'book-plus',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				if (this.settings.translations.length === 0) {
@@ -40,7 +40,7 @@ export default class BibleReferencePlugin extends Plugin {
 				const selectedText = editor.getSelection().trim();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
 				
-				new BibleReferenceModal(
+				new ScriptureModal(
 					this.app, 
 					this.settings.translations,
 					selectionInfo.translation || this.settings.defaultTranslation,
@@ -129,9 +129,9 @@ export default class BibleReferencePlugin extends Plugin {
 		);
 
 		// Add settings tab
-		this.addSettingTab(new BibleReferenceSettingTab(this.app, this));
+		this.addSettingTab(new ScriptureSettingTab(this.app, this));
 		
-		console.log('Bible Reference Plugin loaded');
+		console.log('Scripture Plugin loaded');
 		console.log('Configured translations:', this.settings.translations.map(t => t.name));
 
 		// Apply verse display to any Bible notes that are already open
@@ -143,15 +143,15 @@ export default class BibleReferencePlugin extends Plugin {
 		this.initializeAPI();
 		
 		// Log API availability for verification
-		console.log('Bible Reference Plugin API exposed at app.plugins.plugins["bible-reference"].api');
+		console.log('Scripture Plugin API exposed at app.plugins.plugins["scripture"].api');
 	}
 
 	async onunload() {
 		// Clean up API reference
-		if ((this.app as any).plugins?.plugins?.['bible-reference']?.api) {
-			delete (this.app as any).plugins.plugins['bible-reference'].api;
+		if ((this.app as any).plugins?.plugins?.['scripture']?.api) {
+			delete (this.app as any).plugins.plugins['scripture'].api;
 		}
-		console.log('Bible Reference Plugin unloaded');
+		console.log('Scripture Plugin unloaded');
 	}
 
 	async loadSettings() {
@@ -247,11 +247,11 @@ export default class BibleReferencePlugin extends Plugin {
 	 * 
 	 * Usage example:
 	 * ```javascript
-	 * const bibleAPI = app.plugins.plugins['bible-reference'].api;
-	 * if (bibleAPI) {
-	 *   const primary = bibleAPI.getPrimaryTranslation();
-	 *   const link = bibleAPI.formatVerseReference("John", 3, 16);
-	 *   console.log(`Primary translation: ${primary}, Link: ${link}`);
+	 * const scriptureAPI = app.plugins.plugins['scripture'].api;
+	 * if (scriptureAPI) {
+	 *   const primary = scriptureAPI.getPrimaryTranslation();
+	 *   const link = scriptureAPI.formatVerseReference("John", 3, 16);
+	 *   console.log(`Primary translation: ${primary?.name}, Link: ${link}`);
 	 * }
 	 * ```
 	 */
@@ -272,20 +272,20 @@ export default class BibleReferencePlugin extends Plugin {
 		if (!(this.app as any).plugins.plugins) {
 			(this.app as any).plugins.plugins = {};
 		}
-		if (!(this.app as any).plugins.plugins['bible-reference']) {
-			(this.app as any).plugins.plugins['bible-reference'] = this;
+		if (!(this.app as any).plugins.plugins['scripture']) {
+			(this.app as any).plugins.plugins['scripture'] = this;
 		}
-		(this.app as any).plugins.plugins['bible-reference'].api = this.api;
+		(this.app as any).plugins.plugins['scripture'].api = this.api;
 	}
 
 	/**
-	 * Get the currently configured primary/default translation ID
+	 * Get the currently configured primary/default translation
 	 */
-	private getPrimaryTranslation(): string {
+	private getPrimaryTranslation(): BibleTranslation | null {
 		if (!this.settings || !this.settings.defaultTranslation) {
-			return '';
+			return null;
 		}
-		return this.settings.defaultTranslation;
+		return this.getTranslationSettings(this.settings.defaultTranslation);
 	}
 
 	/**
@@ -319,13 +319,12 @@ export default class BibleReferencePlugin extends Plugin {
 		}
 
 		// Use provided translation or fall back to primary translation
-		const targetTranslation = translation || this.getPrimaryTranslation();
-		if (!targetTranslation) {
-			return '';
+		let translationSettings: BibleTranslation | null;
+		if (translation) {
+			translationSettings = this.getTranslationSettings(translation);
+		} else {
+			translationSettings = this.getPrimaryTranslation();
 		}
-
-		// Get the translation settings to determine if it has notes available
-		const translationSettings = this.getTranslationSettings(targetTranslation);
 		if (!translationSettings) {
 			return '';
 		}
@@ -410,7 +409,7 @@ export default class BibleReferencePlugin extends Plugin {
 			
 			await this.saveSettings();
 			
-			new Notice('Bible Reference settings migrated to new format. Please verify translations in settings.');
+			new Notice('Scripture settings migrated to new format. Please verify translations in settings.');
 		}
 	}
 }

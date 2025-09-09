@@ -1,9 +1,9 @@
 {
-	"id": "bible-reference",
-	"name": "Bible Reference",
+	"id": "scripture",
+	"name": "Scripture",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Insert Bible verses as formatted callouts with reference lookup from JSON data",
+	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
 	"author": "Your Name",
 	"authorUrl": "https://github.com/yourusername",
 	"fundingUrl": "https://buymeacoffee.com/yourusername",

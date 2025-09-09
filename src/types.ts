@@ -54,7 +54,7 @@ export interface BibleTranslation {
 }
 
 // Plugin settings interface
-export interface BibleReferenceSettings {
+export interface ScriptureSettings {
 	translations: BibleTranslation[];
 	defaultTranslation: string;
 	verseNumbers: 'include' | 'exclude' | 'exclude-first';
@@ -67,7 +67,7 @@ export interface BibleReferenceSettings {
 }
 
 // Default settings
-export const DEFAULT_SETTINGS: BibleReferenceSettings = {
+export const DEFAULT_SETTINGS: ScriptureSettings = {
 	translations: [],
 	defaultTranslation: '',
 	verseNumbers: 'exclude',
@@ -83,12 +83,12 @@ export const DEFAULT_SETTINGS: BibleReferenceSettings = {
 export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string) => void;
 
 // Public API interface for plugin interoperability
-export interface BibleReferenceAPI {
+export interface ScriptureAPI {
 	/**
-	 * Get the currently configured primary/default translation ID
-	 * @returns The translation ID string, or empty string if none configured
+	 * Get the currently configured primary/default translation
+	 * @returns The translation object, or null if none configured
 	 */
-	getPrimaryTranslation(): string;
+	getPrimaryTranslation(): BibleTranslation | null;
 
 	/**
 	 * Get all configured Bible translations

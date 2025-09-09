@@ -1,16 +1,16 @@
 import { App, TFile, WorkspaceLeaf, MarkdownView } from 'obsidian';
-import type { BibleReferenceSettings } from './types';
+import type { ScriptureSettings } from './types';
 
 export class BibleVerseDisplayManager {
 	private app: App;
-	private settings: BibleReferenceSettings;
+	private settings: ScriptureSettings;
 
-	constructor(app: App, settings: BibleReferenceSettings) {
+	constructor(app: App, settings: ScriptureSettings) {
 		this.app = app;
 		this.settings = settings;
 	}
 
-	updateSettings(settings: BibleReferenceSettings): void {
+	updateSettings(settings: ScriptureSettings): void {
 		this.settings = settings;
 	}
 

@@ -3,7 +3,7 @@ import { detect_references, PassageReference } from '../bible-references/index.j
 import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
-export class BibleReferenceModal extends Modal {
+export class ScriptureModal extends Modal {
 	private translations: BibleTranslation[];
 	private selectedTranslation: string;
 	private dataLoader: BibleDataLoader;
@@ -24,7 +24,7 @@ export class BibleReferenceModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl('h2', { text: 'Insert Bible Reference' });
+		contentEl.createEl('h2', { text: 'Insert Scripture Reference' });
 
 		if (this.translations.length === 0) {
 			contentEl.createEl('p', {
@@ -47,7 +47,7 @@ export class BibleReferenceModal extends Modal {
 	}
 
 	private createReferenceInput(container: HTMLElement): void {
-		const inputContainer = container.createDiv('bible-reference-input');
+		const inputContainer = container.createDiv('scripture-input');
 		inputContainer.createEl('label', { text: 'Insert reference' });
 
 		this.inputEl = inputContainer.createEl('input', {
@@ -103,7 +103,7 @@ export class BibleReferenceModal extends Modal {
 	}
 
 	private createPreview(container: HTMLElement): void {
-		const previewContainer = container.createDiv('bible-reference-preview');
+		const previewContainer = container.createDiv('scripture-preview');
 		previewContainer.createEl('label', { text: 'Preview' });
 
 		this.previewEl = previewContainer.createEl('div', {
@@ -125,7 +125,7 @@ export class BibleReferenceModal extends Modal {
 	}
 
 	private createButtons(container: HTMLElement): void {
-		const buttonContainer = container.createDiv('bible-reference-buttons');
+		const buttonContainer = container.createDiv('scripture-buttons');
 		buttonContainer.style.display = 'flex';
 		buttonContainer.style.justifyContent = 'flex-end';
 		buttonContainer.style.gap = '10px';

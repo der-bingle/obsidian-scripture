@@ -1,8 +1,8 @@
 import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, ButtonComponent, ToggleComponent } from 'obsidian';
-import type { BibleReferenceSettings, BibleTranslation } from './types';
+import type { ScriptureSettings, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
-export class BibleReferenceSettingTab extends PluginSettingTab {
+export class ScriptureSettingTab extends PluginSettingTab {
 	private plugin: any; // Will be properly typed when we update main.ts
 	private dataLoader: BibleDataLoader;
 
@@ -16,7 +16,7 @@ export class BibleReferenceSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Bible Reference Settings' });
+		containerEl.createEl('h2', { text: 'Scripture Settings' });
 
 		this.displayTranslationsSection(containerEl);
 		this.displayGeneralSettings(containerEl);

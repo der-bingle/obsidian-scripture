@@ -1,5 +1,5 @@
 import { App, TFile, SuggestModal, Notice, KeymapEventHandler } from 'obsidian';
-import type { BibleReferenceSettings, BibleTranslation } from './types';
+import type { ScriptureSettings, BibleTranslation } from './types';
 
 interface TranslationOption {
 	translation: BibleTranslation;
@@ -8,14 +8,14 @@ interface TranslationOption {
 
 export class BibleChapterNavigator {
 	private app: App;
-	private settings: BibleReferenceSettings;
+	private settings: ScriptureSettings;
 
-	constructor(app: App, settings: BibleReferenceSettings) {
+	constructor(app: App, settings: ScriptureSettings) {
 		this.app = app;
 		this.settings = settings;
 	}
 
-	updateSettings(settings: BibleReferenceSettings): void {
+	updateSettings(settings: ScriptureSettings): void {
 		this.settings = settings;
 	}
 
