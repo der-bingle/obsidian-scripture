@@ -18,6 +18,14 @@
       "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
-      "@typescript-eslint/no-empty-function": "off"
+      "@typescript-eslint/no-empty-function": "off",
+      // Disallow namespace imports from Ramda (use named imports instead)
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "ImportDeclaration[source.value='ramda'] > ImportNamespaceSpecifier",
+          "message": "Do not import Ramda as a namespace (e.g. `import * as R from 'ramda'`). Use named imports: `import { pipe, map } from 'ramda'`."
+        }
+      ]
     } 
   }

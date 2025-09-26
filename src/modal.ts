@@ -1,5 +1,5 @@
 import { App, Modal, Notice, ButtonComponent } from 'obsidian';
-import { detect_references, PassageReference } from '../bible-references/index.js';
+import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
@@ -242,7 +242,7 @@ export class ScriptureModal extends Modal {
 		try {
 			console.log('Input reference:', reference);
 
-			const matchGenerator = detect_references(reference);
+			const matchGenerator = detectReferences(reference);
 			const matches = Array.from(matchGenerator);
 			console.log('Matches array:', matches);
 

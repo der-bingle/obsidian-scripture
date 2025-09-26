@@ -30,6 +30,6 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
-		"@gracious.tech/bible-references": "^1.0.0"
+		"scripture-references": "github:der-bingle/scripture-references"
 	}
 }

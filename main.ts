@@ -192,9 +192,9 @@ export default class Scripture extends Plugin {
 
 		try {
 			// Import detect_references for validation
-			const { detect_references } = require('./bible-references/index.js');
+			const { detectReferences } = require('scripture-references');
 			
-			const matchGenerator = detect_references(selectedText);
+			const matchGenerator = detectReferences(selectedText);
 			const matches = Array.from(matchGenerator);
 			
 			// If we found a valid reference, extract the reference and translation
@@ -379,10 +379,10 @@ export default class Scripture extends Plugin {
 			return bookName;
 		}
 
-		// For now, return the book name as-is since the plugin doesn't have 
-		// a comprehensive book name normalization system implemented yet.
-		// This could be enhanced to use the bible-references library or 
-		// create a book name mapping table.
+	// For now, return the book name as-is since the plugin doesn't have 
+	// a comprehensive book name normalization system implemented yet.
+	// This could be enhanced to use the `scripture-references` package
+	// or create a book name mapping table.
 		return bookName.trim();
 	}
 
