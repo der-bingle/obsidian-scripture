@@ -38,9 +38,23 @@ export class CalloutFormatter {
 		
 		// Format each verse according to settings
 		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length));
-		
-		// Join verses with spaces (multiple verses in same callout)
-		const versesText = formattedVerses.join(' ');
+
+		// Join verses while preserving paragraph breaks.
+		// If a verse has `newParagraph === true`, insert a blank line before it;
+		// otherwise separate verses with a space to keep sentences flowing.
+		let versesText = '';
+		for (let i = 0; i < formattedVerses.length; i++) {
+			if (i === 0) {
+				versesText = formattedVerses[i];
+			} else {
+				const startsNewParagraph = !!(verses[i].newParagraph);
+				if (startsNewParagraph) {
+					versesText += '\n\n' + formattedVerses[i];
+				} else {
+					versesText += ' ' + formattedVerses[i];
+				}
+			}
+		}
 		
 		// Split into lines and prefix each with "> " for callout formatting
 		const calloutLines = this.formatAsCalloutLines(versesText);
