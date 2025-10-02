@@ -8,8 +8,8 @@ export class CalloutFormatter {
 		this.settings = settings;
 	}
 
-	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string): void {
-		const callout = this.formatCallout(reference, verses, translation);
+	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): void {
+		const callout = this.formatCallout(reference, verses, translation, includeVerseNumbers);
 		const selection = editor.getSelection();
 
 		if (selection.trim()) {
@@ -30,14 +30,14 @@ export class CalloutFormatter {
 		}
 	}
 
-	private formatCallout(reference: string, verses: BibleVerse[], translation: string): string {
+	private formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): string {
 		// Create properly formatted reference with full book name
 		const formattedReference = this.formatProperReference(verses, translation);
 		const foldingIndicator = this.getFoldingIndicator();
 		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
 		// Format each verse according to settings
-		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length));
+	const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
 
 		// Join verses while preserving paragraph breaks.
 		// If a verse has `newParagraph === true`, insert a blank line before it;
@@ -160,7 +160,7 @@ export class CalloutFormatter {
 		}
 	}
 
-	private formatVerse(verse: BibleVerse, index: number, totalVerses: number): string {
+	private formatVerse(verse: BibleVerse, index: number, totalVerses: number, includeVerseNumbers: boolean): string {
 		// Start with the verse content, joining multiple lines with newlines
 		let content = verse.content.join('\n');
 		
@@ -171,12 +171,19 @@ export class CalloutFormatter {
 		}
 		
 		// Add verse number based on settings
-		const versePrefix = this.getVersePrefix(verse.verse, index);
+	const versePrefix = this.getVersePrefix(verse.verse, index, includeVerseNumbers);
 		
 		return `${versePrefix}${content}`;
 	}
 
-	private getVersePrefix(verseNumber: number, index: number): string {
+	private getVersePrefix(verseNumber: number, index: number, includeVerseNumbers?: boolean): string {
+		// If includeVerseNumbers is explicitly false, suppress numbers.
+		if (includeVerseNumbers === false) return '';
+
+		// If includeVerseNumbers is explicitly true, force inclusion for all verses.
+		if (includeVerseNumbers === true) return `<sup>${verseNumber}</sup> `;
+
+		// Otherwise (undefined): determine behavior based on global settings
 		switch (this.settings.verseNumbers) {
 			case 'include':
 				return `<sup>${verseNumber}</sup> `;

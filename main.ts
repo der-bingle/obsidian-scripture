@@ -41,14 +41,15 @@ export default class Scripture extends Plugin {
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
 				
 				new ScriptureModal(
-					this.app, 
+					this.app,
 					this.settings.translations,
 					selectionInfo.translation || this.settings.defaultTranslation,
 					this.dataLoader,
 					selectionInfo.reference,
-					(reference, verses, translation) => {
-						this.insertScriptureCallout(editor, reference, verses, translation);
-					}
+					(reference, verses, translation, includeVerseNumbers) => {
+						this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers);
+					},
+					this.settings.includeVerseNumbersOnInsert
 				).open();
 			}
 		});
@@ -180,8 +181,10 @@ export default class Scripture extends Plugin {
 		}
 	}
 
-	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string) {
-		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation);
+	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean) {
+		// If includeVerseNumbers not provided, fall back to global setting
+		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
+		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers);
 	}
 
 	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {

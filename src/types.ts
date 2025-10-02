@@ -61,6 +61,8 @@ export interface ScriptureSettings {
 	translationDisplay: 'never' | 'always' | 'except-default';
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
+	/** Default for the insert modal: whether to include verse numbers when inserting multi-verse callouts */
+	includeVerseNumbersOnInsert: boolean;
 	calloutFolding: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed';
 	verseNumbersVisible: boolean;
 	verseNumberDisplayMode: 'first' | 'all';
@@ -74,13 +76,14 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	translationDisplay: 'except-default',
 	linkingStrategy: 'default-translation',
 	includeHiddenLinks: false,
+	includeVerseNumbersOnInsert: false,
 	calloutFolding: 'not-foldable',
 	verseNumbersVisible: true,
 	verseNumberDisplayMode: 'first'
 };
 
 // Modal callback type
-export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string) => void;
+export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean) => void;
 
 // Public API interface for plugin interoperability
 export interface ScriptureAPI {

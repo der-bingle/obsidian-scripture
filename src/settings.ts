@@ -222,6 +222,17 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Include verse numbers on insert (default for modal)
+		new Setting(containerEl)
+			.setName('Include verse numbers when inserting')
+			.setDesc('Default for the insert modal: include verse numbers in multi-verse callouts')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.includeVerseNumbersOnInsert)
+				.onChange(async (value) => {
+					this.plugin.settings.includeVerseNumbersOnInsert = value;
+					await this.plugin.saveSettings();
+				}));
+
 		// Validate all translations button
 		new Setting(containerEl)
 			.setName('Validate Translations')

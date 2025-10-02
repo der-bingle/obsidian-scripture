@@ -1,4 +1,4 @@
-import { App, Modal, Notice, ButtonComponent } from 'obsidian';
+import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
@@ -12,14 +12,18 @@ export class ScriptureModal extends Modal {
 	private translationButtons: ButtonComponent[] = [];
 	private previewEl: HTMLElement;
 	private initialReference: string;
+	private includeVerseNumbersToggle: ToggleComponent;
+	private includeVerseNumbersValue: boolean;
 
-	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback) {
+	// defaultIncludeVerseNumbers is the default value loaded from settings
+	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean) {
 		super(app);
 		this.translations = translations;
 		this.selectedTranslation = defaultTranslation || (translations.length > 0 ? translations[0].name : '');
 		this.dataLoader = dataLoader;
 		this.initialReference = initialReference || '';
 		this.onSubmit = onSubmit;
+		this.includeVerseNumbersValue = defaultIncludeVerseNumbers;
 	}
 
 	onOpen(): void {
@@ -39,6 +43,7 @@ export class ScriptureModal extends Modal {
 
 		this.createReferenceInput(contentEl);
 		this.createTranslationSelector(contentEl);
+		this.createIncludeVerseNumbersToggle(contentEl);
 		this.createPreview(contentEl);
 		this.createButtons(contentEl);
 
@@ -122,6 +127,20 @@ export class ScriptureModal extends Modal {
 		this.previewEl.style.whiteSpace = 'pre-wrap'; // Preserves line breaks
 
 		this.previewEl.innerHTML = 'Enter a reference to see preview...';
+	}
+
+	private createIncludeVerseNumbersToggle(container: HTMLElement): void {
+		const toggleSetting = container.createDiv('include-verse-numbers');
+		const setting = new Setting(toggleSetting)
+			.setName('Include verse numbers')
+			.setDesc('Include verse numbers in the inserted callout (for multi-verse selections)')
+			.addToggle(toggle => {
+				this.includeVerseNumbersToggle = toggle;
+				toggle.setValue(this.includeVerseNumbersValue || false);
+				toggle.onChange((value) => {
+					this.includeVerseNumbersValue = value;
+				});
+			});
 	}
 
 	private createButtons(container: HTMLElement): void {
@@ -230,7 +249,10 @@ export class ScriptureModal extends Modal {
 				return;
 			}
 
-			this.onSubmit(reference, verses, this.selectedTranslation);
+			// If only a single verse is being inserted, we should not include verse numbers
+			const includeVerseNumbers = verses.length === 1 ? false : !!this.includeVerseNumbersValue;
+
+			this.onSubmit(reference, verses, this.selectedTranslation, includeVerseNumbers);
 			this.close();
 		} catch (error) {
 			new Notice('Error processing reference');
