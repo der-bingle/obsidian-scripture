@@ -19,7 +19,7 @@ export class CalloutFormatter {
 			// No selection—insert at cursor position (original behavior)
 			const cursor = editor.getCursor();
 			editor.replaceRange(callout, cursor);
-			
+
 			// Move cursor to after the callout
 			const lines = callout.split('\n');
 			const endPos = {
@@ -28,6 +28,42 @@ export class CalloutFormatter {
 			};
 			editor.setCursor(endPos);
 		}
+	}
+
+	insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers: boolean): void {
+		const plainText = this.formatPlainText(verses, includeVerseNumbers);
+		const selection = editor.getSelection();
+
+		if (selection.trim()) {
+			// Replace selected text with the plain text
+			editor.replaceSelection(plainText);
+		} else {
+			// No selection—insert at cursor position
+			const cursor = editor.getCursor();
+			editor.replaceRange(plainText, cursor);
+		}
+	}
+
+	private formatPlainText(verses: BibleVerse[], includeVerseNumbers: boolean): string {
+		// Format each verse according to settings
+		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
+
+		// Join verses while preserving paragraph breaks
+		let versesText = '';
+		for (let i = 0; i < formattedVerses.length; i++) {
+			if (i === 0) {
+				versesText = formattedVerses[i];
+			} else {
+				const startsNewParagraph = !!(verses[i].newParagraph);
+				if (startsNewParagraph) {
+					versesText += '\n\n' + formattedVerses[i];
+				} else {
+					versesText += ' ' + formattedVerses[i];
+				}
+			}
+		}
+
+		return versesText;
 	}
 
 	private formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): string {
@@ -201,6 +237,25 @@ export class CalloutFormatter {
 			.split('\n')
 			.map(line => `> ${line}`)
 			.join('\n');
+	}
+
+	insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string): void {
+		const link = this.formatScriptureLink(verses, translation);
+		const selection = editor.getSelection();
+
+		if (selection.trim()) {
+			// Replace selected text with the link
+			editor.replaceSelection(link);
+		} else {
+			// No selection—insert at cursor position
+			const cursor = editor.getCursor();
+			editor.replaceRange(link, cursor);
+		}
+	}
+
+	private formatScriptureLink(verses: BibleVerse[], translation: string): string {
+		// Use the same logic as formatProperReference to create the link
+		return this.formatProperReference(verses, translation);
 	}
 
 	updateSettings(settings: ScriptureSettings): void {

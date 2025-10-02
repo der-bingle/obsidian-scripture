@@ -39,17 +39,51 @@ export default class Scripture extends Plugin {
 				// Check if there's selected text and if it contains a Bible reference
 				const selectedText = editor.getSelection().trim();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
-				
+
 				new ScriptureModal(
 					this.app,
 					this.settings.translations,
 					selectionInfo.translation || this.settings.defaultTranslation,
 					this.dataLoader,
 					selectionInfo.reference,
-					(reference, verses, translation, includeVerseNumbers) => {
-						this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers);
+					(reference, verses, translation, includeVerseNumbers, insertAsPlainText) => {
+						if (insertAsPlainText) {
+							this.insertPlainText(editor, verses, includeVerseNumbers);
+						} else {
+							this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers);
+						}
 					},
 					this.settings.includeVerseNumbersOnInsert
+				).open();
+			}
+		});
+
+		// Add command to insert scripture link only
+		this.addCommand({
+			id: 'insert-scripture-link',
+			name: 'Insert Scripture Link',
+			icon: 'link',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				if (this.settings.translations.length === 0) {
+					new Notice('No Bible translations configured. Please add translations in plugin settings.');
+					return;
+				}
+
+				// Check if there's selected text and if it contains a Bible reference
+				const selectedText = editor.getSelection().trim();
+				const selectionInfo = this.extractReferenceFromSelection(selectedText);
+
+				new ScriptureModal(
+					this.app,
+					this.settings.translations,
+					selectionInfo.translation || this.settings.defaultTranslation,
+					this.dataLoader,
+					selectionInfo.reference,
+					(reference, verses, translation, includeVerseNumbers, insertAsPlainText) => {
+						this.insertScriptureLink(editor, verses, translation);
+					},
+					this.settings.includeVerseNumbersOnInsert,
+					false // Don't show verse numbers toggle for link-only insertion
 				).open();
 			}
 		});
@@ -185,6 +219,16 @@ export default class Scripture extends Plugin {
 		// If includeVerseNumbers not provided, fall back to global setting
 		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
 		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers);
+	}
+
+	private insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers?: boolean) {
+		// If includeVerseNumbers not provided, fall back to global setting
+		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
+		this.calloutFormatter.insertPlainText(editor, verses, includeNumbers);
+	}
+
+	private insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string) {
+		this.calloutFormatter.insertScriptureLink(editor, verses, translation);
 	}
 
 	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {

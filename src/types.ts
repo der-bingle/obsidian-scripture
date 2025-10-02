@@ -83,7 +83,7 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 };
 
 // Modal callback type
-export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean) => void;
+export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, insertAsPlainText: boolean) => void;
 
 // Public API interface for plugin interoperability
 export interface ScriptureAPI {
