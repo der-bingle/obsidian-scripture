@@ -223,6 +223,26 @@ body:not(.bible-text-justify) .bible .cm-line {
     color: var(--bible-verse-color);
 }
 
+/* Callout: style verse numbers the same as OPTION 3 (show all verses) */
+.callout[data-callout="scripture"] sup {
+    position: absolute;
+    left: 0;
+    width: 2em;
+    text-align: right;
+    padding-right: 0.4em;
+    font-size: var(--bible-verse-font-size);
+    color: var(--bible-verse-color);
+}
+
+/* In callouts for prose, keep subsequent verse numbers inline like the reading mode rules */
+.callout[data-callout="scripture"]:not(.bible-poetry) sup:not(:first-of-type) {
+    position: static;
+    width: auto;
+    text-align: inherit;
+    padding-right: 0;
+    margin: 0 0.2em;
+}
+
 /* For prose (non-poetry), keep subsequent verse numbers inline after first */
 .bible-numbers-all:not(.bible-poetry) p sup:not(:first-of-type) {
     position: static;
