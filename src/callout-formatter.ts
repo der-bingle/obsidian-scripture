@@ -66,7 +66,7 @@ export class CalloutFormatter {
 		return versesText;
 	}
 
-	private formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): string {
+	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): string {
 		// Create properly formatted reference with full book name
 		const formattedReference = this.formatProperReference(verses, translation);
 		const foldingIndicator = this.getFoldingIndicator();

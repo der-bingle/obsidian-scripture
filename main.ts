@@ -5,6 +5,7 @@ import { CalloutFormatter } from './src/callout-formatter';
 import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import { BibleChapterNavigator } from './src/bible-chapter-navigator';
+import { ScriptureListRenderer } from './src/scripture-list-renderer';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
 
@@ -24,6 +25,36 @@ export default class Scripture extends Plugin {
 		this.dataLoader = new BibleDataLoader(this.app);
 		this.verseDisplayManager = new BibleVerseDisplayManager(this.app, this.settings);
 		this.chapterNavigator = new BibleChapterNavigator(this.app, this.settings);
+
+		// Register scriptureList codeblock processor
+		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
+			const renderer = new ScriptureListRenderer(
+				this.dataLoader,
+				this.calloutFormatter,
+				this.settings.translations,
+				this.settings.defaultTranslation,
+				this.settings
+			);
+
+			// Parse input
+			const references = renderer.parseScriptureListInput(source);
+
+			if (references.length === 0) {
+				// Empty codeblock - render empty table structure
+				const emptyMessage = el.createDiv({ cls: 'scripture-list-empty' });
+				emptyMessage.style.padding = '12px';
+				emptyMessage.style.color = 'var(--text-muted)';
+				emptyMessage.style.fontStyle = 'italic';
+				emptyMessage.textContent = 'No references provided';
+				return;
+			}
+
+			// Process references
+			const processedReferences = await renderer.parseAndLookupReferences(references);
+
+			// Render table
+			await renderer.renderTable(el, processedReferences);
+		});
 
 		// Add command to open reference modal
 		this.addCommand({
