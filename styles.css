@@ -279,6 +279,32 @@ body:not(.bible-text-justify) .bible .cm-line {
     display: none !important;
 }
 
+/* ‼️ SCRIPTURE LIST TABLE */
+.scripture-list-testament-header {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+.scripture-list-table {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* ‼️ ALWAYS SHOW COLLAPSE INDICATORS (for mobile and accessibility) */
+.scripture-list-testament-header {
+    color: var(--h6-color) !important;
+}
+
+.scripture-list-testament-header .collapse-indicator {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* ‼️ ALWAYS SHOW EDIT BLOCK BUTTON (for mobile and accessibility) */
+.edit-block-button {
+    opacity: 1 !important;
+}
+
 /* ‼️ NOTE TOOLBAR */
 .callout[data-callout="note-toolbar"].scripture {
     --cg-nt-item-icon-size: 25px;

@@ -321,14 +321,14 @@ export class ScriptureListRenderer {
 		header.style.alignItems = 'center';
 		header.style.gap = '6px';
 
-		// Add collapse indicator icon
+		// Add testament name
+		header.createSpan({ text: testamentName });
+
+		// Add collapse indicator icon right after the text
 		const indicator = header.createSpan({ cls: 'collapse-indicator' });
 		indicator.style.display = 'flex';
 		indicator.style.alignItems = 'center';
 		setIcon(indicator, 'chevron-down');
-
-		// Add testament name
-		header.createSpan({ text: testamentName });
 
 		// Create table
 		const table = section.createEl('table', { cls: 'scripture-list-table' });
