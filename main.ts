@@ -52,8 +52,8 @@ export default class Scripture extends Plugin {
 			// Process references
 			const processedReferences = await renderer.parseAndLookupReferences(references);
 
-			// Render table
-			await renderer.renderTable(el, processedReferences);
+			// Render table with section info for edit button
+			await renderer.renderTable(el, processedReferences, ctx);
 		});
 
 		// Add command to open reference modal

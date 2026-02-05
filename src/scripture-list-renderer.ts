@@ -1,4 +1,4 @@
-import { Notice, setIcon } from 'obsidian';
+import { Notice, setIcon, MarkdownView } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSettings } from './types';
 import { BibleDataLoader } from './bible-data-loader';
@@ -253,7 +253,16 @@ export class ScriptureListRenderer {
 	/**
 	 * Generate HTML table from processed references
 	 */
-	async renderTable(container: HTMLElement, processedReferences: ProcessedReference[]): Promise<void> {
+	async renderTable(container: HTMLElement, processedReferences: ProcessedReference[], sectionInfo?: any): Promise<void> {
+		// Add wrapper for positioning
+		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
+		wrapper.style.position = 'relative';
+
+		// Add edit button at the top right
+		if (sectionInfo) {
+			this.renderEditButton(wrapper, sectionInfo, 'top');
+		}
+
 		// Group by testament
 		const oldTestament = processedReferences.filter(r => r.testament === 'OLD');
 		const newTestament = processedReferences.filter(r => r.testament === 'NEW');
@@ -266,17 +275,22 @@ export class ScriptureListRenderer {
 
 		// Render Old Testament section
 		if (oldTestament.length > 0) {
-			this.renderTestamentSection(container, 'Old Testament', oldTestament);
+			this.renderTestamentSection(wrapper, 'Old Testament', oldTestament);
 		}
 
 		// Render New Testament section
 		if (newTestament.length > 0) {
-			this.renderTestamentSection(container, 'New Testament', newTestament);
+			this.renderTestamentSection(wrapper, 'New Testament', newTestament);
 		}
 
 		// Render unknown testament section
 		if (unknownTestament.length > 0) {
-			this.renderTestamentSection(container, 'Other', unknownTestament);
+			this.renderTestamentSection(wrapper, 'Other', unknownTestament);
+		}
+
+		// Add edit button at the bottom right
+		if (sectionInfo) {
+			this.renderEditButton(wrapper, sectionInfo, 'bottom');
 		}
 	}
 
@@ -448,6 +462,131 @@ export class ScriptureListRenderer {
 		return verses
 			.map(verse => verse.content.join(' '))
 			.join(' ');
+	}
+
+	/**
+	 * Render edit button to switch to source mode
+	 */
+	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom'): void {
+		const buttonContainer = container.createEl('div', {
+			cls: `scripture-list-edit-container scripture-list-edit-${position}`
+		});
+
+		const button = buttonContainer.createEl('button', {
+			cls: 'scripture-edit-button',
+			attr: {
+				'aria-label': 'Edit scripture list'
+			}
+		});
+
+		// Add Lucide edit icon
+		const iconSpan = button.createSpan({ cls: 'scripture-edit-icon' });
+		setIcon(iconSpan, 'edit');
+
+		// Add "Edit List" text
+		button.createSpan({
+			text: 'Edit List',
+			cls: 'scripture-edit-text'
+		});
+
+		// Handle click to switch to source mode
+		button.addEventListener('click', (e) => {
+			// Prevent default behavior and stop propagation
+			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+
+			const app = (window as any).app;
+			if (!app) return;
+
+			// Try to find and click the native edit button
+			// Look for it in various possible locations
+			let nativeEditButton = container.querySelector('.edit-block-button');
+			if (!nativeEditButton) {
+				const codeBlockContainer = container.closest('.block-language-scriptureList');
+				nativeEditButton = codeBlockContainer?.querySelector('.edit-block-button');
+			}
+			if (!nativeEditButton) {
+				const parentBlock = container.closest('[data-type="markdown"]');
+				nativeEditButton = parentBlock?.querySelector('.edit-block-button');
+			}
+
+			if (nativeEditButton) {
+				// Click the native button
+				(nativeEditButton as HTMLElement).click();
+				return;
+			}
+
+			// Fallback: manual mode switching
+			const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+			if (activeView) {
+				// Get section info to find the exact line numbers
+				const view = activeView.previewMode;
+				const sectionData = view?.renderer?.getSectionInfo(container);
+
+				const currentMode = activeView.getMode();
+
+				if (currentMode !== 'source') {
+					// Switch to source mode first
+					activeView.setMode('source');
+
+					// Wait a bit for the mode switch, then position cursor
+					setTimeout(() => {
+						this.positionCursorInCodeBlock(activeView.editor, sectionData);
+					}, 150);
+				} else {
+					// Already in source mode, just position cursor
+					this.positionCursorInCodeBlock(activeView.editor, sectionData);
+				}
+			}
+		});
+
+		// Hover effect
+		button.addEventListener('mouseenter', () => {
+			button.style.color = 'var(--text-normal)';
+		});
+		button.addEventListener('mouseleave', () => {
+			button.style.color = 'var(--text-muted)';
+		});
+	}
+
+	/**
+	 * Position cursor inside the codeblock in source mode
+	 */
+	private positionCursorInCodeBlock(editor: any, sectionData: any): void {
+		if (!sectionData || sectionData.lineStart === undefined) {
+			// Fallback: try to find the first scriptureList codeblock
+			const content = editor.getValue();
+			const lines = content.split('\n');
+
+			for (let i = 0; i < lines.length; i++) {
+				if (lines[i].trim() === '```scriptureList' || lines[i].trim().startsWith('```scriptureList ')) {
+					// Position at the line after the opening marker
+					const targetLine = i + 1;
+					const lineContent = editor.getLine(targetLine) || '';
+					editor.setCursor({ line: targetLine, ch: lineContent.length });
+					editor.focus();
+					return;
+				}
+			}
+			return;
+		}
+
+		// Use the exact line information from the section
+		// lineEnd points to the closing ```, so position cursor just before it
+		const targetLine = sectionData.lineEnd - 1;
+		const lineContent = editor.getLine(targetLine) || '';
+
+		// Position cursor at the end of the last content line
+		editor.setCursor({ line: targetLine, ch: lineContent.length });
+
+		// Scroll to ensure the cursor is visible
+		editor.scrollIntoView({
+			from: { line: targetLine, ch: 0 },
+			to: { line: targetLine, ch: lineContent.length }
+		});
+
+		editor.focus();
 	}
 
 	/**
