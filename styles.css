@@ -83,6 +83,49 @@ settings:
         description: Whether to justify Bible text
         type: class-toggle
         default: true
+    -
+        id: scripture-list-heading
+        title: Scripture List
+        type: heading
+        level: 2
+    -
+        id: scripture-list-reference-font
+        title: Reference Column Font Family
+        description: Font family for scripture reference column
+        type: variable-text
+        default: inherit
+    -
+        id: scripture-list-reference-size
+        title: Reference Column Font Size
+        description: Font size for scripture reference column
+        type: variable-number-slider
+        default: 1
+        min: 0.75
+        max: 1.5
+        step: 0.05
+        format: em
+    -
+        id: scripture-list-text-font
+        title: Text Column Font Family
+        description: Font family for scripture text column
+        type: variable-text
+        default: inherit
+    -
+        id: scripture-list-text-size
+        title: Text Column Font Size
+        description: Font size for scripture text column
+        type: variable-number-slider
+        default: 1
+        min: 0.75
+        max: 1.5
+        step: 0.05
+        format: em
+    -
+        id: scripture-list-reference-uppercase
+        title: Uppercase References
+        description: Display scripture references in all caps
+        type: class-toggle
+        default: false
 
 */
 
@@ -95,6 +138,10 @@ settings:
     --bible-heading-indent: 0.875em;
     --bible-chapter-heading-font: "Equity Caps A", serif;
     --bible-chapter-heading-size: 0.75em;
+    --scripture-list-reference-font: inherit;
+    --scripture-list-reference-size: 1em;
+    --scripture-list-text-font: inherit;
+    --scripture-list-text-size: 1em;
 }
 
 /* ‼️ HIDE THE VERSES SECTION */
@@ -279,32 +326,6 @@ body:not(.bible-text-justify) .bible .cm-line {
     display: none !important;
 }
 
-/* ‼️ SCRIPTURE LIST TABLE */
-.scripture-list-testament-header {
-    padding-left: 0 !important;
-    margin-left: 0 !important;
-}
-
-.scripture-list-table {
-    padding-left: 0 !important;
-    margin-left: 0 !important;
-}
-
-/* ‼️ ALWAYS SHOW COLLAPSE INDICATORS (for mobile and accessibility) */
-.scripture-list-testament-header {
-    color: var(--h6-color) !important;
-}
-
-.scripture-list-testament-header .collapse-indicator {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-/* ‼️ ALWAYS SHOW EDIT BLOCK BUTTON (for mobile and accessibility) */
-.edit-block-button {
-    opacity: 1 !important;
-}
-
 /* ‼️ NOTE TOOLBAR */
 .callout[data-callout="note-toolbar"].scripture {
     --cg-nt-item-icon-size: 25px;
@@ -321,4 +342,75 @@ body:not(.bible-text-justify) .bible .cm-line {
     font-size: 2.25em;
     text-transform: uppercase;
     color: var(--color-red);
+}
+
+/* ‼️ SCRIPTURE LIST WRAPPER AND EDIT BUTTON */
+.scripture-list-wrapper {
+    position: relative;
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+
+.scripture-list-edit-container {
+    position: absolute;
+    z-index: 10;
+}
+
+.scripture-list-edit-top {
+    top: 0;
+    left: 0;
+}
+
+.scripture-list-edit-bottom {
+    bottom: 0;
+    left: 0;
+}
+
+.scripture-edit-button {
+    cursor: pointer;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-ui-small);
+}
+
+.scripture-edit-button:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-radius: var(--radius-s);
+}
+
+.scripture-edit-icon {
+    display: flex;
+    align-items: center;
+}
+
+.scripture-edit-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.scripture-edit-text {
+    font-weight: 500;
+}
+
+/* ‼️ SCRIPTURE LIST TABLE TYPOGRAPHY */
+.scripture-list-table td:first-child {
+    font-family: var(--scripture-list-reference-font);
+    font-size: var(--scripture-list-reference-size);
+}
+
+.scripture-list-table td:nth-child(2) {
+    font-family: var(--scripture-list-text-font);
+    font-size: var(--scripture-list-text-size);
+}
+
+/* Uppercase references option */
+.scripture-list-reference-uppercase .scripture-list-table td:first-child {
+    text-transform: uppercase;
 }
