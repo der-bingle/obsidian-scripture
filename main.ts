@@ -42,12 +42,8 @@ export default class Scripture extends Plugin {
 			const references = renderer.parseScriptureListInput(source);
 
 			if (references.length === 0) {
-				// Empty codeblock - render empty table structure
-				const emptyMessage = el.createDiv({ cls: 'scripture-list-empty' });
-				emptyMessage.style.padding = '12px';
-				emptyMessage.style.color = 'var(--text-muted)';
-				emptyMessage.style.fontStyle = 'italic';
-				emptyMessage.textContent = 'No references provided';
+				// Empty codeblock - render empty state with edit option
+				renderer.renderEmptyState(el, ctx);
 				return;
 			}
 
@@ -79,14 +75,15 @@ export default class Scripture extends Plugin {
 					selectionInfo.translation || this.settings.defaultTranslation,
 					this.dataLoader,
 					selectionInfo.reference,
-					(reference, verses, translation, includeVerseNumbers, insertAsPlainText) => {
+					(reference, verses, translation, includeVerseNumbers, insertAsPlainText, referenceFormat) => {
 						if (insertAsPlainText) {
 							this.insertPlainText(editor, verses, includeVerseNumbers);
 						} else {
-							this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers);
+							this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers, referenceFormat);
 						}
 					},
-					this.settings.includeVerseNumbersOnInsert
+					this.settings.includeVerseNumbersOnInsert,
+					this.settings.referenceFormat
 				).open();
 			}
 		});
@@ -112,10 +109,11 @@ export default class Scripture extends Plugin {
 					selectionInfo.translation || this.settings.defaultTranslation,
 					this.dataLoader,
 					selectionInfo.reference,
-					(reference, verses, translation, includeVerseNumbers, insertAsPlainText) => {
-						this.insertScriptureLink(editor, verses, translation);
+					(reference, verses, translation, includeVerseNumbers, insertAsPlainText, referenceFormat) => {
+						this.insertScriptureLink(editor, verses, translation, referenceFormat);
 					},
 					this.settings.includeVerseNumbersOnInsert,
+					this.settings.referenceFormat,
 					false // Don't show verse numbers toggle for link-only insertion
 				).open();
 			}
@@ -288,10 +286,10 @@ export default class Scripture extends Plugin {
 		}
 	}
 
-	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean) {
+	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean, referenceFormat?: ScriptureSettings['referenceFormat']) {
 		// If includeVerseNumbers not provided, fall back to global setting
 		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
-		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers);
+		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers, referenceFormat);
 	}
 
 	private insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers?: boolean) {
@@ -300,8 +298,8 @@ export default class Scripture extends Plugin {
 		this.calloutFormatter.insertPlainText(editor, verses, includeNumbers);
 	}
 
-	private insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string) {
-		this.calloutFormatter.insertScriptureLink(editor, verses, translation);
+	private insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string, referenceFormat?: ScriptureSettings['referenceFormat']) {
+		this.calloutFormatter.insertScriptureLink(editor, verses, translation, referenceFormat);
 	}
 
 	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {

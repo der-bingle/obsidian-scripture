@@ -1,6 +1,7 @@
 import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent, setIcon } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation } from './types';
+import type { ReferenceFormat } from './reference-format';
 import { BibleDataLoader } from './bible-data-loader';
 
 export class ScriptureModal extends Modal {
@@ -17,10 +18,11 @@ export class ScriptureModal extends Modal {
 	private showVerseNumbersToggle: boolean;
 	private insertAsPlainTextToggle: ToggleComponent;
 	private insertAsPlainTextValue: boolean;
+	private referenceFormat: ReferenceFormat;
 
 	// defaultIncludeVerseNumbers is the default value loaded from settings
 	// showVerseNumbersToggle determines whether to show the toggle in the UI
-	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, showVerseNumbersToggle: boolean = true) {
+	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultReferenceFormat: ReferenceFormat, showVerseNumbersToggle: boolean = true) {
 		super(app);
 		this.translations = translations;
 		this.selectedTranslation = defaultTranslation || (translations.length > 0 ? translations[0].name : '');
@@ -30,6 +32,7 @@ export class ScriptureModal extends Modal {
 		this.includeVerseNumbersValue = defaultIncludeVerseNumbers;
 		this.showVerseNumbersToggle = showVerseNumbersToggle;
 		this.insertAsPlainTextValue = false;
+		this.referenceFormat = defaultReferenceFormat;
 	}
 
 	onOpen(): void {
@@ -50,6 +53,7 @@ export class ScriptureModal extends Modal {
 		this.createReferenceInput(contentEl);
 		this.createTranslationSelector(contentEl);
 		this.createInsertAsPlainTextToggle(contentEl);
+		this.createReferenceFormatSelector(contentEl);
 		if (this.showVerseNumbersToggle) {
 			this.createIncludeVerseNumbersToggle(contentEl);
 		}
@@ -201,6 +205,20 @@ export class ScriptureModal extends Modal {
 			});
 	}
 
+	private createReferenceFormatSelector(container: HTMLElement): void {
+		new Setting(container)
+			.setName('Reference format')
+			.setDesc('How to display book names in the inserted reference')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.setValue(this.referenceFormat)
+				.onChange((value: ReferenceFormat) => {
+					this.referenceFormat = value;
+				}));
+	}
+
 	private createButtons(container: HTMLElement): void {
 		const buttonContainer = container.createDiv('scripture-buttons');
 		buttonContainer.style.display = 'flex';
@@ -310,7 +328,7 @@ export class ScriptureModal extends Modal {
 			// If only a single verse is being inserted, we should not include verse numbers
 			const includeVerseNumbers = verses.length === 1 ? false : !!this.includeVerseNumbersValue;
 
-			this.onSubmit(reference, verses, this.selectedTranslation, includeVerseNumbers, this.insertAsPlainTextValue);
+			this.onSubmit(reference, verses, this.selectedTranslation, includeVerseNumbers, this.insertAsPlainTextValue, this.referenceFormat);
 			this.close();
 		} catch (error) {
 			new Notice('Error processing reference');

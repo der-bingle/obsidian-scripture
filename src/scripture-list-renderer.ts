@@ -3,6 +3,7 @@ import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSettings } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 import { CalloutFormatter } from './callout-formatter';
+import { formatReferenceDisplay } from './reference-format';
 
 export class ScriptureListRenderer {
 	private dataLoader: BibleDataLoader;
@@ -225,29 +226,13 @@ export class ScriptureListRenderer {
 	 * Format reference display with translation suffix if needed
 	 */
 	private formatReferenceDisplay(verses: BibleVerse[], translation: string): string {
-		if (verses.length === 0) {
-			return '';
-		}
-
-		const firstVerse = verses[0];
-		const lastVerse = verses[verses.length - 1];
-		const bookName = firstVerse.book;
-		const chapter = firstVerse.chapter;
-
-		let verseRange: string;
-		if (verses.length === 1) {
-			verseRange = firstVerse.verse.toString();
-		} else if (firstVerse.chapter === lastVerse.chapter) {
-			verseRange = `${firstVerse.verse}–${lastVerse.verse}`;
-		} else {
-			verseRange = `${firstVerse.verse}–${lastVerse.chapter}:${lastVerse.verse}`;
-		}
-
-		// Include translation if it's not the default
-		const shouldIncludeTranslation = translation !== this.defaultTranslation;
-		const translationSuffix = shouldIncludeTranslation ? `, ${translation}` : '';
-
-		return `${bookName} ${chapter}:${verseRange}${translationSuffix}`;
+		return formatReferenceDisplay(
+			verses,
+			translation,
+			this.defaultTranslation,
+			this.settings.translationDisplay,
+			this.settings.scriptureListReferenceFormat
+		);
 	}
 
 	/**
@@ -467,7 +452,17 @@ export class ScriptureListRenderer {
 	/**
 	 * Render edit button to switch to source mode
 	 */
-	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom'): void {
+	public renderEmptyState(container: HTMLElement, sectionInfo?: any): void {
+		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
+		const emptyMessage = wrapper.createDiv({ cls: 'scripture-list-empty' });
+		emptyMessage.textContent = 'No references provided';
+
+		if (sectionInfo) {
+			this.renderEditButton(wrapper, sectionInfo, 'inline');
+		}
+	}
+
+	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom' | 'inline'): void {
 		const buttonContainer = container.createEl('div', {
 			cls: `scripture-list-edit-container scripture-list-edit-${position}`
 		});
@@ -501,15 +496,18 @@ export class ScriptureListRenderer {
 
 			// Try to find and click the native edit button
 			// Look for it in various possible locations
-				let nativeEditButton = container.querySelector('.edit-block-button');
-				if (!nativeEditButton) {
-					const codeBlockContainer = container.closest('.block-language-scriptureList');
-					nativeEditButton = codeBlockContainer?.querySelector('.edit-block-button') ?? null;
-				}
-				if (!nativeEditButton) {
-					const parentBlock = container.closest('[data-type="markdown"]');
-					nativeEditButton = parentBlock?.querySelector('.edit-block-button') ?? null;
-				}
+      let nativeEditButton: Element | null = container.querySelector(".edit-block-button");
+
+      if (!nativeEditButton) {
+        const codeBlockContainer = container.closest(".block-language-scriptureList");
+        nativeEditButton = codeBlockContainer?.querySelector(".edit-block-button") ?? null;
+      }
+
+      if (!nativeEditButton) {
+        const parentBlock = container.closest('[data-type="markdown"]');
+        nativeEditButton = parentBlock?.querySelector(".edit-block-button") ?? null;
+      }
+
 
 			if (nativeEditButton) {
 				// Click the native button

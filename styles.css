@@ -366,6 +366,17 @@ body:not(.bible-text-justify) .bible .cm-line {
     left: 0;
 }
 
+.scripture-list-edit-inline {
+    position: static;
+    margin-top: 6px;
+}
+
+.scripture-list-empty {
+    padding: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .scripture-edit-button {
     cursor: pointer;
     padding: 6px 10px;
