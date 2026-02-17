@@ -151,4 +151,19 @@ export interface ScriptureAPI {
 	 * @returns Normalized book name, or original if not recognized
 	 */
 	normalizeBookName(bookName: string): string;
+
+	/**
+	 * Resolve scripture input to a chapter note target without opening it.
+	 * @param input - Scripture reference input (e.g., "John 3:16 NLT")
+	 * @returns Resolved target metadata or null when no chapter note can be resolved
+	 */
+	resolveScriptureNote(input: string): Promise<{ reference: string; translation: string; path: string; anchor?: string } | null>;
+
+	/**
+	 * Parse and open a scripture chapter note.
+	 * @param input - Scripture reference input (e.g., "John 3:16 NLT")
+	 * @param options - Optional open behavior
+	 * @returns true when a note was opened, false otherwise
+	 */
+	openScriptureNote(input: string, options?: { openInNewLeaf?: boolean; silent?: boolean }): Promise<boolean>;
 }

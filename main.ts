@@ -1,4 +1,5 @@
-import { App, Editor, MarkdownView, Plugin, Notice, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, MarkdownView, Plugin, Notice, WorkspaceLeaf, TFile } from 'obsidian';
+import { detectReferences } from 'scripture-references';
 import { ScriptureModal } from './src/modal';
 import { ScriptureSettingTab } from './src/settings';
 import { CalloutFormatter } from './src/callout-formatter';
@@ -6,6 +7,7 @@ import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import { BibleChapterNavigator } from './src/bible-chapter-navigator';
 import { ScriptureListRenderer } from './src/scripture-list-renderer';
+import { ScriptureNoteSwitcherModal, type ScriptureNoteSuggestion } from './src/scripture-note-switcher';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
 
@@ -131,6 +133,46 @@ export default class Scripture extends Plugin {
 					return true;
 				}
 				return false;
+			}
+		});
+
+		// Add command to open scripture notes (quick-switcher style)
+		this.addCommand({
+			id: 'open-scripture-note',
+			name: 'Open Scripture Note',
+			icon: 'search',
+			callback: () => {
+				const noteTranslations = this.getNoteEnabledTranslations();
+				if (noteTranslations.length === 0) {
+					new Notice('No translations configured with scripture notes. Enable "Available as Notes" in settings.');
+					return;
+				}
+
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const selectedText = activeView?.editor?.getSelection().trim() || '';
+				const initialInput = this.extractReferenceFromSelection(selectedText).reference;
+
+				new ScriptureNoteSwitcherModal(
+					this.app,
+					noteTranslations,
+					this.settings.defaultTranslation,
+					async (input) => {
+						const resolved = await this.resolveScriptureNote(input);
+						if (!resolved) return null;
+						const translationObj = this.settings.translations.find(t => t.name === resolved.translation);
+						return {
+							reference: resolved.reference,
+							translation: resolved.translation,
+							translationFullName: translationObj?.fullName || resolved.translation,
+							path: resolved.path,
+							anchor: resolved.anchor
+						} as ScriptureNoteSuggestion;
+					},
+					async (suggestion, evt) => {
+						await this.openResolvedScriptureNote(suggestion.path, suggestion.anchor, evt instanceof KeyboardEvent ? evt : undefined);
+					},
+					initialInput
+				).open();
 			}
 		});
 
@@ -267,9 +309,6 @@ export default class Scripture extends Plugin {
 		}
 
 		try {
-			// Import detect_references for validation
-			const { detectReferences } = require('scripture-references');
-			
 			const matchGenerator = detectReferences(selectedText);
 			const matches = Array.from(matchGenerator);
 			
@@ -318,6 +357,101 @@ export default class Scripture extends Plugin {
 		return { reference: text.trim(), translation: null };
 	}
 
+	private getNoteEnabledTranslations(): BibleTranslation[] {
+		return this.settings.translations.filter(t => t.availableAsNotes && !!t.notesDirectory);
+	}
+
+	private normalizeDirectory(path: string): string {
+		if (!path) return '';
+		return path.endsWith('/') ? path : `${path}/`;
+	}
+
+	private resolveTranslationForInput(requestedTranslation: string | null): BibleTranslation | null {
+		const noteTranslations = this.getNoteEnabledTranslations();
+		if (noteTranslations.length === 0) return null;
+
+		if (requestedTranslation) {
+			const explicit = noteTranslations.find(t => t.name.toUpperCase() === requestedTranslation.toUpperCase());
+			if (explicit) return explicit;
+		}
+
+		const defaultTranslation = noteTranslations.find(t => t.name === this.settings.defaultTranslation);
+		if (defaultTranslation) return defaultTranslation;
+
+		return noteTranslations[0] || null;
+	}
+
+	private findChapterNoteFile(translation: BibleTranslation, bookName: string, chapter: number): TFile | null {
+		const notesDir = this.normalizeDirectory(translation.notesDirectory || '');
+		if (!notesDir) return null;
+
+		const candidates = [
+			`${bookName} ${chapter}`,
+			bookName === 'Psalms' ? `Psalm ${chapter}` : `${bookName} ${chapter}`,
+			bookName === 'Psalm' ? `Psalms ${chapter}` : `${bookName} ${chapter}`
+		];
+
+		const allFiles = this.app.vault.getMarkdownFiles();
+		return allFiles.find(file => {
+			if (!file.path.startsWith(notesDir)) return false;
+			return candidates.includes(file.basename);
+		}) || null;
+	}
+
+	private async openResolvedScriptureNote(path: string, anchor?: string, evt?: KeyboardEvent): Promise<void> {
+		const targetPath = anchor ? `${path}#${anchor}` : path;
+		const currentFilePath = this.app.workspace.getActiveFile()?.path || '';
+		const newLeaf = !!(evt && (evt.metaKey || evt.ctrlKey));
+		await this.app.workspace.openLinkText(targetPath, currentFilePath, newLeaf, { active: true });
+	}
+
+	private async resolveScriptureNote(input: string): Promise<{ reference: string; translation: string; path: string; anchor?: string } | null> {
+		if (!input?.trim()) return null;
+
+		const { reference, translation: requestedTranslation } = this.parseReferenceAndTranslation(input.trim());
+		const translation = this.resolveTranslationForInput(requestedTranslation);
+		if (!translation) return null;
+
+		const matches = Array.from(detectReferences(reference));
+		if (!matches.length || !(matches[0] as any).ref) return null;
+
+		const ref = (matches[0] as any).ref;
+		const chapter = ref.start_chapter;
+		const verse = ref.start_verse;
+
+		const bibleData = await this.dataLoader.loadTranslation(translation);
+		if (!bibleData?.books?.length) return null;
+
+		const bookId = String(ref.book || '').toUpperCase();
+		const book = bibleData.books.find(b => b.id === bookId);
+		if (!book || !chapter) return null;
+
+		const chapterFile = this.findChapterNoteFile(translation, book.title, chapter);
+		if (!chapterFile) return null;
+
+		return {
+			reference,
+			translation: translation.name,
+			path: chapterFile.path,
+			anchor: verse ? String(verse) : undefined
+		};
+	}
+
+	private async openScriptureNote(input: string, options?: { openInNewLeaf?: boolean; silent?: boolean }): Promise<boolean> {
+		const resolved = await this.resolveScriptureNote(input);
+		if (!resolved) {
+			if (!options?.silent) {
+				new Notice('Could not resolve scripture note from input');
+			}
+			return false;
+		}
+
+		const currentFilePath = this.app.workspace.getActiveFile()?.path || '';
+		const targetPath = resolved.anchor ? `${resolved.path}#${resolved.anchor}` : resolved.path;
+		await this.app.workspace.openLinkText(targetPath, currentFilePath, !!options?.openInNewLeaf, { active: true });
+		return true;
+	}
+
 	/**
 	 * Initialize and expose the public API for other plugins to use
 	 * 
@@ -338,7 +472,9 @@ export default class Scripture extends Plugin {
 			getTranslationSettings: this.getTranslationSettings.bind(this),
 			formatVerseReference: this.formatVerseReference.bind(this),
 			parseScriptureReference: this.parseScriptureReference.bind(this),
-			normalizeBookName: this.normalizeBookName.bind(this)
+			normalizeBookName: this.normalizeBookName.bind(this),
+			resolveScriptureNote: this.resolveScriptureNote.bind(this),
+			openScriptureNote: this.openScriptureNote.bind(this)
 		};
 
 		// Expose API on the global app object
@@ -352,6 +488,17 @@ export default class Scripture extends Plugin {
 			(this.app as any).plugins.plugins['scripture'] = this;
 		}
 		(this.app as any).plugins.plugins['scripture'].api = this.api;
+
+		this.registerObsidianProtocolHandler('open-scripture-note', async (params: Record<string, string>) => {
+			const input = params.reference || params.ref || params.q || '';
+			if (!input) {
+				new Notice('Missing reference parameter');
+				return;
+			}
+
+			const openInNewLeaf = params.newLeaf === '1' || params.newLeaf === 'true';
+			await this.openScriptureNote(input, { openInNewLeaf });
+		});
 	}
 
 	/**
