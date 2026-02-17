@@ -59,6 +59,8 @@ export interface ScriptureSettings {
 	defaultTranslation: string;
 	verseNumbers: 'include' | 'exclude' | 'exclude-first';
 	translationDisplay: 'never' | 'always' | 'except-default';
+	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev';
+	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev';
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
 	/** Default for the insert modal: whether to include verse numbers when inserting multi-verse callouts */
@@ -74,6 +76,8 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	defaultTranslation: '',
 	verseNumbers: 'exclude',
 	translationDisplay: 'except-default',
+	referenceFormat: 'full-name',
+	scriptureListReferenceFormat: 'full-name',
 	linkingStrategy: 'default-translation',
 	includeHiddenLinks: false,
 	includeVerseNumbersOnInsert: false,
@@ -83,7 +87,14 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 };
 
 // Modal callback type
-export type OnSubmitCallback = (reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, insertAsPlainText: boolean) => void;
+export type OnSubmitCallback = (
+	reference: string,
+	verses: BibleVerse[],
+	translation: string,
+	includeVerseNumbers: boolean,
+	insertAsPlainText: boolean,
+	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev'
+) => void;
 
 // Scripture list renderer interface
 export interface ProcessedReference {
