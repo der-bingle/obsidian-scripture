@@ -1,4 +1,4 @@
-import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent } from 'obsidian';
+import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent, setIcon } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation } from './types';
 import { BibleDataLoader } from './bible-data-loader';
@@ -63,6 +63,7 @@ export class ScriptureModal extends Modal {
 	private createReferenceInput(container: HTMLElement): void {
 		const inputContainer = container.createDiv('scripture-input');
 		inputContainer.createEl('label', { text: 'Insert reference' });
+		inputContainer.style.position = 'relative';
 
 		this.inputEl = inputContainer.createEl('input', {
 			type: 'text',
@@ -71,7 +72,41 @@ export class ScriptureModal extends Modal {
 
 		this.inputEl.style.width = '100%';
 		this.inputEl.style.padding = '8px';
+		this.inputEl.style.paddingRight = '40px';
 		this.inputEl.style.margin = '5px 0 15px 0';
+
+		const pasteButton = inputContainer.createEl('button', {
+			attr: {
+				type: 'button',
+				'aria-label': 'Paste from clipboard',
+				title: 'Paste from clipboard'
+			}
+		});
+		pasteButton.style.position = 'absolute';
+		pasteButton.style.right = '6px';
+		pasteButton.style.top = '35px';
+		pasteButton.style.padding = '4px 6px';
+		pasteButton.style.border = 'none';
+		pasteButton.style.background = 'transparent';
+		pasteButton.style.cursor = 'pointer';
+		setIcon(pasteButton, 'clipboard-paste');
+
+		pasteButton.addEventListener('click', async (evt) => {
+			evt.preventDefault();
+			try {
+				const clipText = await navigator.clipboard.readText();
+				if (!clipText?.trim()) {
+					new Notice('Clipboard is empty');
+					return;
+				}
+
+				this.inputEl.value = clipText.trim();
+				this.updatePreview();
+			} catch (error) {
+				console.error('Clipboard read failed:', error);
+				new Notice('Unable to read clipboard in this environment');
+			}
+		});
 
 		// Set initial value if we have a pre-populated reference
 		if (this.initialReference) {

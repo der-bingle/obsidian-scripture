@@ -32,6 +32,7 @@ A comprehensive scripture study plugin for Obsidian that provides reference inse
 ## Commands
 
 - **Insert Scripture Reference** (`insert-scripture-reference`): Open the reference insertion modal
+- **Open Scripture Note** (`open-scripture-note`): Quick-switcher style opener for scripture chapter notes
 - **Open Chapter in Other Translation** (`open-chapter-in-translation`): Navigate between translations (available when Bible chapter note is open)  
 - **Toggle Verse Numbers** (`toggle-verse-numbers`): Toggle verse number visibility
 - **Show First Verse Only** (`show-first-verse-only`): Display first verse numbers only
@@ -115,11 +116,27 @@ if (scriptureAPI) {
   
   // Parse scripture references from text
   const parsed = scriptureAPI.parseScriptureReference("John 3:16 ESV");
+
+  // Resolve scripture note target without opening
+  const target = await scriptureAPI.resolveScriptureNote("John 3:16 NLT");
+
+  // Open scripture note directly (no modal interaction)
+  await scriptureAPI.openScriptureNote("John 3:16 NLT");
   
   // Normalize book names
   const normalized = scriptureAPI.normalizeBookName("1 Cor");
 }
 ```
+
+### Obsidian URI protocol integration
+
+The plugin also registers an Obsidian protocol handler:
+
+`obsidian://scripture/open-scripture-note?reference=John%203%3A16%20NLT`
+
+Accepted query params:
+- `reference` (or `ref` / `q`): scripture input text
+- `newLeaf` (`true`/`1`): open in a new leaf
 
 ## Styling and Customization
 

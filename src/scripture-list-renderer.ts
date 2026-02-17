@@ -501,15 +501,15 @@ export class ScriptureListRenderer {
 
 			// Try to find and click the native edit button
 			// Look for it in various possible locations
-			let nativeEditButton = container.querySelector('.edit-block-button');
-			if (!nativeEditButton) {
-				const codeBlockContainer = container.closest('.block-language-scriptureList');
-				nativeEditButton = codeBlockContainer?.querySelector('.edit-block-button');
-			}
-			if (!nativeEditButton) {
-				const parentBlock = container.closest('[data-type="markdown"]');
-				nativeEditButton = parentBlock?.querySelector('.edit-block-button');
-			}
+				let nativeEditButton = container.querySelector('.edit-block-button');
+				if (!nativeEditButton) {
+					const codeBlockContainer = container.closest('.block-language-scriptureList');
+					nativeEditButton = codeBlockContainer?.querySelector('.edit-block-button') ?? null;
+				}
+				if (!nativeEditButton) {
+					const parentBlock = container.closest('[data-type="markdown"]');
+					nativeEditButton = parentBlock?.querySelector('.edit-block-button') ?? null;
+				}
 
 			if (nativeEditButton) {
 				// Click the native button
