@@ -452,7 +452,17 @@ export class ScriptureListRenderer {
 	/**
 	 * Render edit button to switch to source mode
 	 */
-	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom'): void {
+	public renderEmptyState(container: HTMLElement, sectionInfo?: any): void {
+		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
+		const emptyMessage = wrapper.createDiv({ cls: 'scripture-list-empty' });
+		emptyMessage.textContent = 'No references provided';
+
+		if (sectionInfo) {
+			this.renderEditButton(wrapper, sectionInfo, 'inline');
+		}
+	}
+
+	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom' | 'inline'): void {
 		const buttonContainer = container.createEl('div', {
 			cls: `scripture-list-edit-container scripture-list-edit-${position}`
 		});
@@ -486,15 +496,18 @@ export class ScriptureListRenderer {
 
 			// Try to find and click the native edit button
 			// Look for it in various possible locations
-				let nativeEditButton = container.querySelector('.edit-block-button');
-				if (!nativeEditButton) {
-					const codeBlockContainer = container.closest('.block-language-scriptureList');
-					nativeEditButton = codeBlockContainer?.querySelector('.edit-block-button') || null;
-				}
-				if (!nativeEditButton) {
-					const parentBlock = container.closest('[data-type="markdown"]');
-					nativeEditButton = parentBlock?.querySelector('.edit-block-button') || null;
-				}
+      let nativeEditButton: Element | null = container.querySelector(".edit-block-button");
+
+      if (!nativeEditButton) {
+        const codeBlockContainer = container.closest(".block-language-scriptureList");
+        nativeEditButton = codeBlockContainer?.querySelector(".edit-block-button") ?? null;
+      }
+
+      if (!nativeEditButton) {
+        const parentBlock = container.closest('[data-type="markdown"]');
+        nativeEditButton = parentBlock?.querySelector(".edit-block-button") ?? null;
+      }
+
 
 			if (nativeEditButton) {
 				// Click the native button

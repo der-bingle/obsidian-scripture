@@ -40,12 +40,8 @@ export default class Scripture extends Plugin {
 			const references = renderer.parseScriptureListInput(source);
 
 			if (references.length === 0) {
-				// Empty codeblock - render empty table structure
-				const emptyMessage = el.createDiv({ cls: 'scripture-list-empty' });
-				emptyMessage.style.padding = '12px';
-				emptyMessage.style.color = 'var(--text-muted)';
-				emptyMessage.style.fontStyle = 'italic';
-				emptyMessage.textContent = 'No references provided';
+				// Empty codeblock - render empty state with edit option
+				renderer.renderEmptyState(el, ctx);
 				return;
 			}
 

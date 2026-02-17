@@ -1,11 +1,11 @@
 {
-	"id": "scripture",
+	"id": "obsidian-scripture",
 	"name": "Scripture",
-	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
+	"version": "0.5.0",
+	"minAppVersion": "1.9.0",
 	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
-	"author": "Your Name",
-	"authorUrl": "https://github.com/yourusername",
-	"fundingUrl": "https://buymeacoffee.com/yourusername",
+	"author": "Luke Wilson",
+	"authorUrl": "https://github.com/der-bingle",
+	"fundingUrl": "https://buymeacoffee.com/derbingle",
 	"isDesktopOnly": false
 }
