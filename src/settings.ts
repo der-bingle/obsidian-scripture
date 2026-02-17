@@ -184,6 +184,32 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl)
+			.setName('Reference Format')
+			.setDesc('Default format for inserted scripture references')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.setValue(this.plugin.settings.referenceFormat)
+				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {
+					this.plugin.settings.referenceFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Scripture List Reference Format')
+			.setDesc('Format for the reference column in scriptureList codeblock rendering')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.setValue(this.plugin.settings.scriptureListReferenceFormat)
+				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {
+					this.plugin.settings.scriptureListReferenceFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
 		// Linking strategy setting
 		new Setting(containerEl)
 			.setName('Linking Strategy')

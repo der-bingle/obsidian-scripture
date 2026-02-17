@@ -1,5 +1,7 @@
 import { Editor } from 'obsidian';
 import type { BibleVerse, ScriptureSettings } from './types';
+import type { ReferenceFormat } from './reference-format';
+import { formatReferenceDisplay } from './reference-format';
 
 export class CalloutFormatter {
 	private settings: ScriptureSettings;
@@ -8,8 +10,8 @@ export class CalloutFormatter {
 		this.settings = settings;
 	}
 
-	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): void {
-		const callout = this.formatCallout(reference, verses, translation, includeVerseNumbers);
+	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): void {
+		const callout = this.formatCallout(reference, verses, translation, includeVerseNumbers, referenceFormat);
 		const selection = editor.getSelection();
 
 		if (selection.trim()) {
@@ -66,9 +68,9 @@ export class CalloutFormatter {
 		return versesText;
 	}
 
-	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean): string {
+	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): string {
 		// Create properly formatted reference with full book name
-		const formattedReference = this.formatProperReference(verses, translation);
+		const formattedReference = this.formatProperReference(verses, translation, referenceFormat);
 		const foldingIndicator = this.getFoldingIndicator();
 		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
@@ -128,47 +130,28 @@ export class CalloutFormatter {
 		return `> ${hiddenLinks.join(' ')}`;
 	}
 
-	private formatProperReference(verses: BibleVerse[], translation: string): string {
+	private formatProperReference(verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
 		if (verses.length === 0) {
 			return '';
 		}
 
-		const firstVerse = verses[0];
-		const lastVerse = verses[verses.length - 1];
-		
-		// Get the full book name from the first verse
-		const bookName = firstVerse.book;
-		const chapter = firstVerse.chapter;
-		
-		// Format verse range
-		let verseRange: string;
-		if (verses.length === 1) {
-			// Single verse
-			verseRange = firstVerse.verse.toString();
-		} else if (firstVerse.chapter === lastVerse.chapter) {
-			// Same chapter, verse range
-			verseRange = `${firstVerse.verse}–${lastVerse.verse}`;
-		} else {
-			// Cross-chapter range
-			verseRange = `${firstVerse.verse}–${lastVerse.chapter}:${lastVerse.verse}`;
-		}
-		
-		// Determine if translation should be included in display text
-		const shouldIncludeTranslation = this.shouldIncludeTranslation(translation);
-		const translationSuffix = shouldIncludeTranslation ? `, ${translation}` : '';
-		
-		// Create the display text
-		const displayText = `${bookName} ${chapter}:${verseRange}${translationSuffix}`;
+		const displayText = formatReferenceDisplay(
+			verses,
+			translation,
+			this.settings.defaultTranslation,
+			this.settings.translationDisplay,
+			referenceFormat || this.settings.referenceFormat
+		);
 		
 		// Determine which translation to link to
 		const linkTranslation = this.getLinkTranslation(translation);
 		
 		// Convert book name for linking (Psalms → Psalm)
-		const linkBookName = bookName === 'Psalms' ? 'Psalm' : bookName;
+		const linkBookName = verses[0].book === 'Psalms' ? 'Psalm' : verses[0].book;
 		
 		// Create the wikilink
-		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${chapter}`;
-		const anchor = firstVerse.verse.toString(); // Link to first verse for ranges
+		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verses[0].chapter}`;
+		const anchor = verses[0].verse.toString(); // Link to first verse for ranges
 		
 		return `[[${linkPath}#${anchor}|${displayText}]]`;
 	}
@@ -180,19 +163,6 @@ export class CalloutFormatter {
 			case 'default-translation':
 			default:
 				return this.settings.defaultTranslation || verseTranslation;
-		}
-	}
-
-	private shouldIncludeTranslation(translation: string): boolean {
-		switch (this.settings.translationDisplay) {
-			case 'never':
-				return false;
-			case 'always':
-				return true;
-			case 'except-default':
-				return translation !== this.settings.defaultTranslation;
-			default:
-				return false;
 		}
 	}
 
@@ -239,8 +209,8 @@ export class CalloutFormatter {
 			.join('\n');
 	}
 
-	insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string): void {
-		const link = this.formatScriptureLink(verses, translation);
+	insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): void {
+		const link = this.formatScriptureLink(verses, translation, referenceFormat);
 		const selection = editor.getSelection();
 
 		if (selection.trim()) {
@@ -253,9 +223,9 @@ export class CalloutFormatter {
 		}
 	}
 
-	private formatScriptureLink(verses: BibleVerse[], translation: string): string {
+	private formatScriptureLink(verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
 		// Use the same logic as formatProperReference to create the link
-		return this.formatProperReference(verses, translation);
+		return this.formatProperReference(verses, translation, referenceFormat);
 	}
 
 	updateSettings(settings: ScriptureSettings): void {
