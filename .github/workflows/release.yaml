@@ -1,0 +1,45 @@
+name: build-and-release
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: install
+        run: npm ci
+
+      - name: build
+        run: npm run build
+
+      - name: verify-artifacts
+        run: |
+          test -f main.js
+          test -f manifest.json
+
+      - name: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            main.js
+            manifest.json
+            styles.css
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
