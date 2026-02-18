@@ -494,33 +494,10 @@ export class ScriptureListRenderer {
 			const app = (window as any).app;
 			if (!app) return;
 
-			// Try to find and click the native edit button
-			// Look for it in various possible locations
-      let nativeEditButton: Element | null = container.querySelector(".edit-block-button");
-
-      if (!nativeEditButton) {
-        const codeBlockContainer = container.closest(".block-language-scriptureList");
-        nativeEditButton = codeBlockContainer?.querySelector(".edit-block-button") ?? null;
-      }
-
-      if (!nativeEditButton) {
-        const parentBlock = container.closest('[data-type="markdown"]');
-        nativeEditButton = parentBlock?.querySelector(".edit-block-button") ?? null;
-      }
-
-
-			if (nativeEditButton) {
-				// Click the native button
-				(nativeEditButton as HTMLElement).click();
-				return;
-			}
-
 			// Fallback: manual mode switching
 			const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 			if (activeView) {
-				// Get section info to find the exact line numbers
-				const view = activeView.previewMode;
-				const sectionData = view?.renderer?.getSectionInfo(container);
+				const sectionData = sectionInfo;
 
 				const currentMode = activeView.getMode();
 
