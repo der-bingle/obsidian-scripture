@@ -187,14 +187,14 @@ export class CalloutFormatter {
 		if (includeVerseNumbers === false) return '';
 
 		// If includeVerseNumbers is explicitly true, force inclusion for all verses.
-		if (includeVerseNumbers === true) return `<sup>${verseNumber}</sup> `;
+		if (includeVerseNumbers === true) return `<sup>${verseNumber}</sup>`;
 
 		// Otherwise (undefined): determine behavior based on global settings
 		switch (this.settings.verseNumbers) {
 			case 'include':
-				return `<sup>${verseNumber}</sup> `;
+				return `<sup>${verseNumber}</sup>`;
 			case 'exclude-first':
-				return index === 0 ? '' : `<sup>${verseNumber}</sup> `;
+				return index === 0 ? '' : `<sup>${verseNumber}</sup>`;
 			case 'exclude':
 			default:
 				return '';
