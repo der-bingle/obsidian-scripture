@@ -5,6 +5,9 @@ import { BibleDataLoader } from './bible-data-loader';
 import { CalloutFormatter } from './callout-formatter';
 import { formatReferenceDisplay } from './reference-format';
 
+type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
+type ScriptureListAction = 'edit' | 'add';
+
 export class ScriptureListRenderer {
 	private dataLoader: BibleDataLoader;
 	private calloutFormatter: CalloutFormatter;
@@ -245,7 +248,7 @@ export class ScriptureListRenderer {
 
 		// Add edit button at the top right
 		if (sectionInfo) {
-			this.renderEditButton(wrapper, sectionInfo, 'top');
+			this.renderListActionButtons(wrapper, sectionInfo, 'top');
 		}
 
 		// Group by testament
@@ -275,7 +278,7 @@ export class ScriptureListRenderer {
 
 		// Add edit button at the bottom right
 		if (sectionInfo) {
-			this.renderEditButton(wrapper, sectionInfo, 'bottom');
+			this.renderListActionButtons(wrapper, sectionInfo, 'bottom');
 		}
 	}
 
@@ -458,62 +461,64 @@ export class ScriptureListRenderer {
 		emptyMessage.textContent = 'No references provided';
 
 		if (sectionInfo) {
-			this.renderEditButton(wrapper, sectionInfo, 'inline');
+			this.renderListActionButtons(wrapper, sectionInfo, 'inline');
 		}
 	}
 
-	private renderEditButton(container: HTMLElement, sectionInfo: any, position: 'top' | 'bottom' | 'inline'): void {
+	private renderListActionButtons(
+		container: HTMLElement,
+		sectionInfo: any,
+		position: ScriptureListButtonPosition
+	): void {
 		const buttonContainer = container.createEl('div', {
 			cls: `scripture-list-edit-container scripture-list-edit-${position}`
 		});
 
-		const button = buttonContainer.createEl('button', {
+		this.renderListActionButton(buttonContainer, sectionInfo, 'edit');
+		this.renderListActionButton(buttonContainer, sectionInfo, 'add');
+	}
+
+	private renderListActionButton(
+		container: HTMLElement,
+		sectionInfo: any,
+		action: ScriptureListAction
+	): void {
+		const actionConfig = action === 'add'
+			? {
+				ariaLabel: 'Add scripture to list',
+				icon: 'plus',
+				text: 'Add Scripture'
+			}
+			: {
+				ariaLabel: 'Edit scripture list',
+				icon: 'edit',
+				text: 'Edit List'
+			};
+
+		const button = container.createEl('button', {
 			cls: 'scripture-edit-button',
 			attr: {
-				'aria-label': 'Edit scripture list'
+				'aria-label': actionConfig.ariaLabel
 			}
 		});
 
-		// Add Lucide edit icon
+		// Add Lucide icon
 		const iconSpan = button.createSpan({ cls: 'scripture-edit-icon' });
-		setIcon(iconSpan, 'edit');
+		setIcon(iconSpan, actionConfig.icon);
 
-		// Add "Edit List" text
+		// Add button text
 		button.createSpan({
-			text: 'Edit List',
+			text: actionConfig.text,
 			cls: 'scripture-edit-text'
 		});
 
 		// Handle click to switch to source mode
 		button.addEventListener('click', (e) => {
-			// Prevent default behavior and stop propagation
 			e.preventDefault();
 			e.stopPropagation();
 			e.stopImmediatePropagation();
 
-			const app = (window as any).app;
-			if (!app) return;
-
-			// Fallback: manual mode switching
-			const activeView = app.workspace.getActiveViewOfType(MarkdownView);
-			if (activeView) {
-				const sectionData = sectionInfo;
-
-				const currentMode = activeView.getMode();
-
-				if (currentMode !== 'source') {
-					// Switch to source mode first
-					activeView.setMode('source');
-
-					// Wait a bit for the mode switch, then position cursor
-					setTimeout(() => {
-						this.positionCursorInCodeBlock(activeView.editor, sectionData);
-					}, 150);
-				} else {
-					// Already in source mode, just position cursor
-					this.positionCursorInCodeBlock(activeView.editor, sectionData);
-				}
-			}
+			this.openCodeBlockForAction(sectionInfo, action);
 		});
 
 		// Hover effect
@@ -525,42 +530,102 @@ export class ScriptureListRenderer {
 		});
 	}
 
+	private openCodeBlockForAction(sectionInfo: any, action: ScriptureListAction): void {
+		const app = (window as any).app;
+		if (!app) return;
+
+		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView) return;
+
+		const applyAction = () => {
+			if (action === 'add') {
+				this.addBlankLineToCodeBlock(activeView.editor, sectionInfo);
+				return;
+			}
+
+			this.positionCursorInCodeBlock(activeView.editor, sectionInfo);
+		};
+
+		if (activeView.getMode() !== 'source') {
+			activeView.setMode('source');
+
+			setTimeout(() => {
+				applyAction();
+			}, 150);
+			return;
+		}
+
+		applyAction();
+	}
+
+	private resolveCodeBlockRange(editor: any, sectionData?: any): { lineStart: number; lineEnd: number } | null {
+		if (sectionData?.lineStart !== undefined && sectionData?.lineEnd !== undefined) {
+			return {
+				lineStart: sectionData.lineStart,
+				lineEnd: sectionData.lineEnd
+			};
+		}
+
+		const content = editor.getValue();
+		const lines = content.split('\n');
+
+		for (let i = 0; i < lines.length; i++) {
+			if (lines[i].trim() === '```scriptureList' || lines[i].trim().startsWith('```scriptureList ')) {
+				for (let j = i + 1; j < lines.length; j++) {
+					if (lines[j].trim() === '```') {
+						return {
+							lineStart: i,
+							lineEnd: j
+						};
+					}
+				}
+
+				return null;
+			}
+		}
+
+		return null;
+	}
+
 	/**
 	 * Position cursor inside the codeblock in source mode
 	 */
 	private positionCursorInCodeBlock(editor: any, sectionData: any): void {
-		if (!sectionData || sectionData.lineStart === undefined) {
-			// Fallback: try to find the first scriptureList codeblock
-			const content = editor.getValue();
-			const lines = content.split('\n');
-
-			for (let i = 0; i < lines.length; i++) {
-				if (lines[i].trim() === '```scriptureList' || lines[i].trim().startsWith('```scriptureList ')) {
-					// Position at the line after the opening marker
-					const targetLine = i + 1;
-					const lineContent = editor.getLine(targetLine) || '';
-					editor.setCursor({ line: targetLine, ch: lineContent.length });
-					editor.focus();
-					return;
-				}
-			}
+		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
+		if (!codeBlockRange) {
 			return;
 		}
 
-		// Use the exact line information from the section
-		// lineEnd points to the closing ```, so position cursor just before it
-		const targetLine = sectionData.lineEnd - 1;
+		const targetLine = Math.max(codeBlockRange.lineStart + 1, codeBlockRange.lineEnd - 1);
 		const lineContent = editor.getLine(targetLine) || '';
 
-		// Position cursor at the end of the last content line
 		editor.setCursor({ line: targetLine, ch: lineContent.length });
 
-		// Scroll to ensure the cursor is visible
 		editor.scrollIntoView({
 			from: { line: targetLine, ch: 0 },
 			to: { line: targetLine, ch: lineContent.length }
 		});
 
+		editor.focus();
+	}
+
+	private addBlankLineToCodeBlock(editor: any, sectionData: any): void {
+		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
+		if (!codeBlockRange) {
+			return;
+		}
+
+		const insertAtLine = codeBlockRange.lineEnd - 1;
+		const insertAtCh = (editor.getLine(insertAtLine) || '').length;
+
+		editor.replaceRange('\n', { line: insertAtLine, ch: insertAtCh });
+
+		const targetLine = insertAtLine + 1;
+		editor.setCursor({ line: targetLine, ch: 0 });
+		editor.scrollIntoView({
+			from: { line: targetLine, ch: 0 },
+			to: { line: targetLine, ch: 0 }
+		});
 		editor.focus();
 	}
 

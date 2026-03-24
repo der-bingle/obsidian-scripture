@@ -189,7 +189,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 			.setDesc('Default format for inserted scripture references')
 			.addDropdown(dropdown => dropdown
 				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
 				.setValue(this.plugin.settings.referenceFormat)
 				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {
@@ -202,7 +202,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 			.setDesc('Format for the reference column in scriptureList codeblock rendering')
 			.addDropdown(dropdown => dropdown
 				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
 				.setValue(this.plugin.settings.scriptureListReferenceFormat)
 				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {

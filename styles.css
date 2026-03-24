@@ -354,6 +354,9 @@ body:not(.bible-text-justify) .bible .cm-line {
 .scripture-list-edit-container {
     position: absolute;
     z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .scripture-list-edit-top {

@@ -211,7 +211,7 @@ export class ScriptureModal extends Modal {
 			.setDesc('How to display book names in the inserted reference')
 			.addDropdown(dropdown => dropdown
 				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (JAS 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
 				.setValue(this.referenceFormat)
 				.onChange((value: ReferenceFormat) => {
