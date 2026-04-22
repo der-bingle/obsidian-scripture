@@ -1,5 +1,6 @@
 import { App, TFile, WorkspaceLeaf, MarkdownView } from 'obsidian';
 import type { ScriptureSettings } from './types';
+import { isBibleNoteFile } from './bible-note-utils';
 
 export class BibleVerseDisplayManager {
 	private app: App;
@@ -87,22 +88,7 @@ export class BibleVerseDisplayManager {
 
 	// Check if a file is a Bible note based on translation settings
 	isBibleNote(file: TFile): boolean {
-		if (!file.path) return false;
-
-		return this.settings.translations.some(translation => {
-			if (!translation.availableAsNotes || !translation.notesDirectory) {
-				return false;
-			}
-
-			// Normalize directory path (ensure it ends with /)
-			const normalizedDir = translation.notesDirectory.endsWith('/') 
-				? translation.notesDirectory 
-				: translation.notesDirectory + '/';
-
-			// Check if file is directly in the Bible notes directory
-			const fileDir = file.parent?.path ? file.parent.path + '/' : '';
-			return fileDir === normalizedDir;
-		});
+		return isBibleNoteFile(this.settings, file);
 	}
 
 	// Toggle verse number visibility

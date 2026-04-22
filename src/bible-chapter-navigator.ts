@@ -1,5 +1,6 @@
 import { App, TFile, SuggestModal, Notice, KeymapEventHandler } from 'obsidian';
 import type { ScriptureSettings, BibleTranslation } from './types';
+import { getBibleNoteTranslation, getNoteEnabledTranslations, isBibleNoteFile, normalizeNotesDirectory } from './bible-note-utils';
 
 interface TranslationOption {
 	translation: BibleTranslation;
@@ -54,37 +55,14 @@ export class BibleChapterNavigator {
 	 * Check if a file is a Bible chapter note
 	 */
 	private isBibleChapterNote(file: TFile): boolean {
-		if (!file.path) return false;
-
-		return this.settings.translations.some(translation => {
-			if (!translation.availableAsNotes || !translation.notesDirectory) {
-				return false;
-			}
-
-			// Check if file is within this translation's notes directory (including subdirectories)
-			const normalizedDir = translation.notesDirectory.endsWith('/') 
-				? translation.notesDirectory 
-				: translation.notesDirectory + '/';
-
-			return file.path.startsWith(normalizedDir);
-		});
+		return isBibleNoteFile(this.settings, file);
 	}
 
 	/**
 	 * Get the current translation for a Bible chapter note
 	 */
 	private getCurrentTranslation(file: TFile): BibleTranslation | null {
-		return this.settings.translations.find(translation => {
-			if (!translation.availableAsNotes || !translation.notesDirectory) {
-				return false;
-			}
-
-			const normalizedDir = translation.notesDirectory.endsWith('/') 
-				? translation.notesDirectory 
-				: translation.notesDirectory + '/';
-
-			return file.path.startsWith(normalizedDir);
-		}) || null;
+		return getBibleNoteTranslation(this.settings, file);
 	}
 
 	/**
@@ -93,8 +71,7 @@ export class BibleChapterNavigator {
 	private getAvailableTranslations(currentFile: TFile): TranslationOption[] {
 		const currentTranslation = this.getCurrentTranslation(currentFile);
 		
-		return this.settings.translations
-			.filter(translation => translation.availableAsNotes && translation.notesDirectory)
+		return getNoteEnabledTranslations(this.settings)
 			.map(translation => ({
 				translation,
 				isCurrent: currentTranslation?.name === translation.name
@@ -145,9 +122,7 @@ export class BibleChapterNavigator {
 		const allFiles = this.app.vault.getMarkdownFiles();
 		
 		// Filter to files in the translation's notes directory (including subdirectories)
-		const normalizedDir = translation.notesDirectory.endsWith('/') 
-			? translation.notesDirectory 
-			: translation.notesDirectory + '/';
+		const normalizedDir = normalizeNotesDirectory(translation.notesDirectory || '');
 
 		const translationFiles = allFiles.filter(file => 
 			file.path.startsWith(normalizedDir)

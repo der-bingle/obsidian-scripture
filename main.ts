@@ -6,6 +6,7 @@ import { CalloutFormatter } from './src/callout-formatter';
 import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import { BibleChapterNavigator } from './src/bible-chapter-navigator';
+import { BibleNoteTitleManager } from './src/bible-note-title-manager';
 import { ScriptureListRenderer } from './src/scripture-list-renderer';
 import { ScriptureNoteSwitcherModal, type ScriptureNoteSuggestion } from './src/scripture-note-switcher';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
@@ -17,6 +18,7 @@ export default class Scripture extends Plugin {
 	private dataLoader: BibleDataLoader;
 	private verseDisplayManager: BibleVerseDisplayManager;
 	private chapterNavigator: BibleChapterNavigator;
+	private bibleNoteTitleManager: BibleNoteTitleManager;
 	public api: ScriptureAPI;
 
 	async onload() {
@@ -27,6 +29,7 @@ export default class Scripture extends Plugin {
 		this.dataLoader = new BibleDataLoader(this.app);
 		this.verseDisplayManager = new BibleVerseDisplayManager(this.app, this.settings);
 		this.chapterNavigator = new BibleChapterNavigator(this.app, this.settings);
+		this.bibleNoteTitleManager = new BibleNoteTitleManager(this.app, this.settings);
 
 		// Register scriptureList codeblock processor
 		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
@@ -221,6 +224,8 @@ export default class Scripture extends Plugin {
 						}
 					}, 100);
 				}
+
+				this.bibleNoteTitleManager.scheduleRefresh();
 			})
 		);
 
@@ -231,6 +236,32 @@ export default class Scripture extends Plugin {
 				setTimeout(() => {
 					this.verseDisplayManager.applyVerseDisplayToOpenFiles();
 				}, 100);
+
+				this.bibleNoteTitleManager.scheduleRefresh();
+			})
+		);
+
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => {
+				this.bibleNoteTitleManager.scheduleRefresh();
+			})
+		);
+
+		this.registerEvent(
+			this.app.metadataCache.on('changed', () => {
+				this.bibleNoteTitleManager.scheduleRefresh();
+			})
+		);
+
+		this.registerEvent(
+			this.app.metadataCache.on('resolved', () => {
+				this.bibleNoteTitleManager.scheduleRefresh();
+			})
+		);
+
+		this.registerEvent(
+			this.app.vault.on('rename', () => {
+				this.bibleNoteTitleManager.scheduleRefresh();
 			})
 		);
 
@@ -243,6 +274,7 @@ export default class Scripture extends Plugin {
 		// Apply verse display to any Bible notes that are already open
 		setTimeout(() => {
 			this.verseDisplayManager.applyVerseDisplayToOpenFiles();
+			this.bibleNoteTitleManager.refreshOpenNoteTitles();
 		}, 1000);
 
 		// Initialize and expose the public API
@@ -253,6 +285,10 @@ export default class Scripture extends Plugin {
 	}
 
 	async onunload() {
+		if (this.bibleNoteTitleManager) {
+			this.bibleNoteTitleManager.restoreAllTitles();
+		}
+
 		// Clean up API reference
 		if ((this.app as any).plugins?.plugins?.['scripture']?.api) {
 			delete (this.app as any).plugins.plugins['scripture'].api;
@@ -283,6 +319,9 @@ export default class Scripture extends Plugin {
 		}
 		if (this.chapterNavigator) {
 			this.chapterNavigator.updateSettings(this.settings);
+		}
+		if (this.bibleNoteTitleManager) {
+			this.bibleNoteTitleManager.updateSettings(this.settings);
 		}
 	}
 

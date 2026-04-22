@@ -68,6 +68,7 @@ export interface ScriptureSettings {
 	calloutFolding: 'not-foldable' | 'foldable-expanded' | 'foldable-collapsed';
 	verseNumbersVisible: boolean;
 	verseNumberDisplayMode: 'first' | 'all';
+	bibleNoteTabTitleMode: 'never' | 'duplicates-only' | 'always';
 }
 
 // Default settings
@@ -83,7 +84,8 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	includeVerseNumbersOnInsert: false,
 	calloutFolding: 'not-foldable',
 	verseNumbersVisible: true,
-	verseNumberDisplayMode: 'first'
+	verseNumberDisplayMode: 'first',
+	bibleNoteTabTitleMode: 'duplicates-only'
 };
 
 // Modal callback type

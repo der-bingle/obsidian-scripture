@@ -310,6 +310,23 @@ export class ScriptureSettingTab extends PluginSettingTab {
 						this.plugin.verseDisplayManager.applyVerseDisplayToOpenFiles();
 					}
 				}));
+
+		new Setting(containerEl)
+			.setName('Bible Note Tab Titles')
+			.setDesc('When to append the translation to open Bible note tab titles')
+			.addDropdown(dropdown => dropdown
+				.addOption('never', 'Never append translation')
+				.addOption('duplicates-only', 'Only when duplicate chapters are open')
+				.addOption('always', 'Always append translation')
+				.setValue(this.plugin.settings.bibleNoteTabTitleMode)
+				.onChange(async (value: 'never' | 'duplicates-only' | 'always') => {
+					this.plugin.settings.bibleNoteTabTitleMode = value;
+					await this.plugin.saveSettings();
+
+					if (this.plugin.bibleNoteTitleManager) {
+						this.plugin.bibleNoteTitleManager.refreshOpenNoteTitles();
+					}
+				}));
 	}
 
 	private async validateAllTranslations(): Promise<void> {
