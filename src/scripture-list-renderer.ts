@@ -9,6 +9,7 @@ type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add';
 
 export class ScriptureListRenderer {
+	private static readonly FOLD_STATE_KEY = 'scripture-plugin:scripture-list-fold-state';
 	private dataLoader: BibleDataLoader;
 	private calloutFormatter: CalloutFormatter;
 	private translations: BibleTranslation[];
@@ -263,17 +264,17 @@ export class ScriptureListRenderer {
 
 		// Render Old Testament section
 		if (oldTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'Old Testament', oldTestament);
+			this.renderTestamentSection(wrapper, 'Old Testament', oldTestament, sectionInfo);
 		}
 
 		// Render New Testament section
 		if (newTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'New Testament', newTestament);
+			this.renderTestamentSection(wrapper, 'New Testament', newTestament, sectionInfo);
 		}
 
 		// Render unknown testament section
 		if (unknownTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'Other', unknownTestament);
+			this.renderTestamentSection(wrapper, 'Other', unknownTestament, sectionInfo);
 		}
 
 		// Add edit button at the bottom right
@@ -311,7 +312,7 @@ export class ScriptureListRenderer {
 	/**
 	 * Render a collapsible testament section with h6 header
 	 */
-	private renderTestamentSection(container: HTMLElement, testamentName: string, references: ProcessedReference[]): void {
+	private renderTestamentSection(container: HTMLElement, testamentName: string, references: ProcessedReference[], sectionInfo?: any): void {
 		const section = container.createEl('div', { cls: 'scripture-list-testament-section' });
 		section.style.marginBottom = '16px';
 
@@ -338,6 +339,12 @@ export class ScriptureListRenderer {
 		table.style.borderCollapse = 'collapse';
 		table.style.marginTop = '8px';
 
+		const foldStateKey = this.getFoldStateKey(sectionInfo, testamentName);
+		let isExpanded = this.getStoredFoldState(foldStateKey);
+		table.style.display = isExpanded ? '' : 'none';
+		indicator.empty();
+		setIcon(indicator, isExpanded ? 'chevron-down' : 'chevron-right');
+
 		const tbody = table.createEl('tbody');
 
 		// Render reference rows
@@ -360,6 +367,7 @@ export class ScriptureListRenderer {
 			const textCell = row.createEl('td', {
 				attr: { style: 'padding: 8px; vertical-align: top;' }
 			});
+			textCell.style.whiteSpace = 'pre-wrap';
 
 			if (ref.error) {
 				textCell.innerHTML = `<span style="color: var(--text-error);">❌ ${ref.error}</span>`;
@@ -378,12 +386,12 @@ export class ScriptureListRenderer {
 		}
 
 		// Add collapse/expand functionality
-		let isExpanded = true;
 		header.addEventListener('click', () => {
 			isExpanded = !isExpanded;
 			table.style.display = isExpanded ? '' : 'none';
 			indicator.empty();
 			setIcon(indicator, isExpanded ? 'chevron-down' : 'chevron-right');
+			this.storeFoldState(foldStateKey, isExpanded);
 		});
 	}
 
@@ -447,9 +455,66 @@ export class ScriptureListRenderer {
 	 * Format verse text for display in table
 	 */
 	private formatVerseText(verses: BibleVerse[]): string {
-		return verses
-			.map(verse => verse.content.join(' '))
-			.join(' ');
+		let formattedText = '';
+
+		for (let i = 0; i < verses.length; i++) {
+			const verse = verses[i];
+			const verseText = verse.content.join('\n');
+
+			if (i === 0) {
+				formattedText = verseText;
+				continue;
+			}
+
+			if (verse.newParagraph) {
+				formattedText += `\n\n${verseText}`;
+				continue;
+			}
+
+			if (verse.poetry || verses[i - 1]?.poetry) {
+				formattedText += `\n${verseText}`;
+				continue;
+			}
+
+			formattedText += ` ${verseText}`;
+		}
+
+		return formattedText;
+	}
+
+	private getFoldStateKey(sectionInfo: any, testamentName: string): string {
+		const sourcePath = typeof sectionInfo?.sourcePath === 'string' ? sectionInfo.sourcePath : 'unknown-source';
+		const lineStart = typeof sectionInfo?.lineStart === 'number' ? sectionInfo.lineStart : -1;
+		return `${sourcePath}:${lineStart}:${testamentName}`;
+	}
+
+	private getStoredFoldState(foldStateKey: string): boolean {
+		try {
+			const rawState = window.localStorage.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
+			if (!rawState) {
+				return true;
+			}
+
+			const parsedState = JSON.parse(rawState) as Record<string, boolean>;
+			return parsedState[foldStateKey] ?? true;
+		} catch (error) {
+			console.error('Failed to read scripture list fold state:', error);
+			return true;
+		}
+	}
+
+	private storeFoldState(foldStateKey: string, isExpanded: boolean): void {
+		try {
+			const rawState = window.localStorage.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
+			const parsedState = rawState ? JSON.parse(rawState) as Record<string, boolean> : {};
+			parsedState[foldStateKey] = isExpanded;
+			window.localStorage.setItem(
+				ScriptureListRenderer.FOLD_STATE_KEY,
+				JSON.stringify(parsedState)
+			);
+		} catch (error) {
+			console.error('Failed to save scripture list fold state:', error);
+		}
 	}
 
 	/**
