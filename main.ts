@@ -113,7 +113,7 @@ export default class Scripture extends Plugin {
 					this.dataLoader,
 					selectionInfo.reference,
 					(reference, verses, translation, includeVerseNumbers, insertAsPlainText, referenceFormat) => {
-						this.insertScriptureLink(editor, verses, translation, referenceFormat);
+						this.insertScriptureLink(editor, reference, verses, translation, referenceFormat);
 					},
 					this.settings.includeVerseNumbersOnInsert,
 					this.settings.referenceFormat,
@@ -337,8 +337,8 @@ export default class Scripture extends Plugin {
 		this.calloutFormatter.insertPlainText(editor, verses, includeNumbers);
 	}
 
-	private insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string, referenceFormat?: ScriptureSettings['referenceFormat']) {
-		this.calloutFormatter.insertScriptureLink(editor, verses, translation, referenceFormat);
+	private insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ScriptureSettings['referenceFormat']) {
+		this.calloutFormatter.insertScriptureLink(editor, reference, verses, translation, referenceFormat);
 	}
 
 	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {

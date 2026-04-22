@@ -213,6 +213,7 @@ export class ScriptureModal extends Modal {
 				.addOption('full-name', 'Full book name (James 1:16–18)')
 				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
 				.setValue(this.referenceFormat)
 				.onChange((value: ReferenceFormat) => {
 					this.referenceFormat = value;
@@ -400,9 +401,9 @@ export class ScriptureModal extends Modal {
 
 		const chapter = ref.start_chapter;
 		const startVerse = ref.start_verse;
-		const endVerse = ref.end_verse || ref.start_verse;
+		const isChapterReference = ref.type === 'chapter';
 
-		console.log(`Looking up: ${bookCode} ${chapter}:${startVerse}-${endVerse}`);
+		console.log(`Looking up: ${bookCode} ${chapter}`);
 
 		// Find the book in the books array
 		const book = bibleData.books.find(b => b.id === bookCode);
@@ -433,7 +434,15 @@ export class ScriptureModal extends Modal {
 			return [];
 		}
 
-		for (let verseNum = startVerse; verseNum <= endVerse; verseNum++) {
+		const endVerse = isChapterReference
+			? chapterData.verses[chapterData.verses.length - 1]?.verse
+			: (ref.end_verse || ref.start_verse);
+		const lookupStartVerse = isChapterReference ? chapterData.verses[0]?.verse : startVerse;
+		if (!lookupStartVerse || !endVerse) {
+			return [];
+		}
+
+		for (let verseNum = lookupStartVerse; verseNum <= endVerse; verseNum++) {
 			const verseData = chapterData.verses.find(v => v.verse === verseNum);
 			if (verseData) {
 				// Convert to our expected BibleVerse format

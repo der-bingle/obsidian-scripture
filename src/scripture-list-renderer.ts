@@ -98,7 +98,7 @@ export class ScriptureListRenderer {
 				const bookNumber = await this.getBookNumber(verses[0].book, translationObj);
 
 				// Format the proper reference display (e.g., "John 3:16" or "John 3:16, NLT")
-				const displayRef = this.formatReferenceDisplay(verses, translationToUse);
+				const displayRef = this.formatReferenceDisplay(verses, translationToUse, passageRef.type === 'chapter');
 
 				processed.push({
 					originalInput: input,
@@ -106,7 +106,8 @@ export class ScriptureListRenderer {
 					translation: translationToUse,
 					verses,
 					testament,
-					bookNumber
+					bookNumber,
+					isChapterReference: passageRef.type === 'chapter'
 				});
 
 			} catch (error) {
@@ -168,10 +169,17 @@ export class ScriptureListRenderer {
 		}
 
 		const verses: BibleVerse[] = [];
-		const startVerse = ref.start_verse;
-		const endVerse = ref.end_verse || ref.start_verse;
+		const isChapterReference = ref.type === 'chapter';
+		const lookupStartVerse = isChapterReference ? chapterData.verses[0]?.verse : ref.start_verse;
+		const endVerse = isChapterReference
+			? chapterData.verses[chapterData.verses.length - 1]?.verse
+			: (ref.end_verse || ref.start_verse);
 
-		for (let verseNum = startVerse; verseNum <= endVerse; verseNum++) {
+		if (!lookupStartVerse || !endVerse) {
+			return [];
+		}
+
+		for (let verseNum = lookupStartVerse; verseNum <= endVerse; verseNum++) {
 			const verseData = chapterData.verses.find(v => v.verse === verseNum);
 			if (verseData) {
 				verses.push({
@@ -229,13 +237,14 @@ export class ScriptureListRenderer {
 	/**
 	 * Format reference display with translation suffix if needed
 	 */
-	private formatReferenceDisplay(verses: BibleVerse[], translation: string): string {
+	private formatReferenceDisplay(verses: BibleVerse[], translation: string, isChapterReference: boolean = false): string {
 		return formatReferenceDisplay(
 			verses,
 			translation,
 			this.defaultTranslation,
 			this.settings.translationDisplay,
-			this.settings.scriptureListReferenceFormat
+			this.settings.scriptureListReferenceFormat,
+			{ isChapterReference }
 		);
 	}
 
@@ -426,7 +435,7 @@ export class ScriptureListRenderer {
 
 		// Create the link path
 		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${chapter}`;
-		const anchor = `#${verse}`;
+		const anchor = ref.isChapterReference ? '' : `#${verse}`;
 
 		// Create clickable link
 		const link = cell.createEl('a', {
@@ -446,7 +455,7 @@ export class ScriptureListRenderer {
 			// Use Obsidian's internal link navigation
 			const app = (window as any).app;
 			if (app) {
-				app.workspace.openLinkText(linkPath, '', false, { active: true });
+				app.workspace.openLinkText(`${linkPath}${anchor}`, '', false, { active: true });
 			}
 		});
 	}

@@ -59,8 +59,8 @@ export interface ScriptureSettings {
 	defaultTranslation: string;
 	verseNumbers: 'include' | 'exclude' | 'exclude-first';
 	translationDisplay: 'never' | 'always' | 'except-default';
-	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev';
-	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev';
+	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
 	/** Default for the insert modal: whether to include verse numbers when inserting multi-verse callouts */
@@ -95,7 +95,7 @@ export type OnSubmitCallback = (
 	translation: string,
 	includeVerseNumbers: boolean,
 	insertAsPlainText: boolean,
-	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev'
+	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse'
 ) => void;
 
 // Scripture list renderer interface
@@ -106,6 +106,7 @@ export interface ProcessedReference {
 	verses?: BibleVerse[];
 	testament?: 'OLD' | 'NEW';
 	bookNumber?: number;
+	isChapterReference?: boolean;
 	error?: string;
 }
 

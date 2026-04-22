@@ -1,4 +1,5 @@
 import { Editor } from 'obsidian';
+import { detectReferences } from 'scripture-references';
 import type { BibleVerse, ScriptureSettings } from './types';
 import type { ReferenceFormat } from './reference-format';
 import { formatReferenceDisplay } from './reference-format';
@@ -70,7 +71,7 @@ export class CalloutFormatter {
 
 	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): string {
 		// Create properly formatted reference with full book name
-		const formattedReference = this.formatProperReference(verses, translation, referenceFormat);
+		const formattedReference = this.formatProperReference(reference, verses, translation, referenceFormat);
 		const foldingIndicator = this.getFoldingIndicator();
 		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
@@ -130,17 +131,20 @@ export class CalloutFormatter {
 		return `> ${hiddenLinks.join(' ')}`;
 	}
 
-	private formatProperReference(verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
+	private formatProperReference(reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
 		if (verses.length === 0) {
 			return '';
 		}
+
+		const isChapterReference = this.isChapterReference(reference);
 
 		const displayText = formatReferenceDisplay(
 			verses,
 			translation,
 			this.settings.defaultTranslation,
 			this.settings.translationDisplay,
-			referenceFormat || this.settings.referenceFormat
+			referenceFormat || this.settings.referenceFormat,
+			{ isChapterReference }
 		);
 		
 		// Determine which translation to link to
@@ -151,9 +155,9 @@ export class CalloutFormatter {
 		
 		// Create the wikilink
 		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verses[0].chapter}`;
-		const anchor = verses[0].verse.toString(); // Link to first verse for ranges
+		const anchor = isChapterReference ? '' : `#${verses[0].verse.toString()}`; // Link to first verse for ranges
 		
-		return `[[${linkPath}#${anchor}|${displayText}]]`;
+		return `[[${linkPath}${anchor}|${displayText}]]`;
 	}
 
 	private getLinkTranslation(verseTranslation: string): string {
@@ -209,8 +213,8 @@ export class CalloutFormatter {
 			.join('\n');
 	}
 
-	insertScriptureLink(editor: Editor, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): void {
-		const link = this.formatScriptureLink(verses, translation, referenceFormat);
+	insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): void {
+		const link = this.formatScriptureLink(reference, verses, translation, referenceFormat);
 		const selection = editor.getSelection();
 
 		if (selection.trim()) {
@@ -223,9 +227,23 @@ export class CalloutFormatter {
 		}
 	}
 
-	private formatScriptureLink(verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
+	private formatScriptureLink(reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
 		// Use the same logic as formatProperReference to create the link
-		return this.formatProperReference(verses, translation, referenceFormat);
+		return this.formatProperReference(reference, verses, translation, referenceFormat);
+	}
+
+	private isChapterReference(reference: string): boolean {
+		try {
+			const matches = Array.from(detectReferences(reference));
+			if (!matches.length || !(matches[0] as any).ref) {
+				return false;
+			}
+
+			return (matches[0] as any).ref.type === 'chapter';
+		} catch (error) {
+			console.error('Failed to detect reference type:', error);
+			return false;
+		}
 	}
 
 	updateSettings(settings: ScriptureSettings): void {

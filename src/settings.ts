@@ -191,8 +191,9 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				.addOption('full-name', 'Full book name (James 1:16–18)')
 				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
 				.setValue(this.plugin.settings.referenceFormat)
-				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {
+				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
 					this.plugin.settings.referenceFormat = value;
 					await this.plugin.saveSettings();
 				}));
@@ -204,8 +205,9 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				.addOption('full-name', 'Full book name (James 1:16–18)')
 				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
 				.addOption('english-abbrev', 'English abbreviations from scripture-references')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
 				.setValue(this.plugin.settings.scriptureListReferenceFormat)
-				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev') => {
+				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
 					this.plugin.settings.scriptureListReferenceFormat = value;
 					await this.plugin.saveSettings();
 				}));

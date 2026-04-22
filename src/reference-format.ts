@@ -2,6 +2,9 @@ import { book_abbrev_english } from 'scripture-references';
 import type { BibleVerse, ScriptureSettings } from './types';
 
 export type ReferenceFormat = ScriptureSettings['referenceFormat'];
+interface ReferenceDisplayOptions {
+	isChapterReference?: boolean;
+}
 
 const STANDARD_BOOK_ABBREVIATIONS: Record<string, string> = {
 	Genesis: 'GEN', Exodus: 'EXO', Leviticus: 'LEV', Numbers: 'NUM', Deuteronomy: 'DEU',
@@ -22,15 +25,27 @@ const STANDARD_BOOK_ABBREVIATIONS: Record<string, string> = {
 
 let englishAbbrevMapCache: Record<string, string> | null = null;
 
-export function formatReferenceDisplay(verses: BibleVerse[], translation: string, defaultTranslation: string, translationDisplay: ScriptureSettings['translationDisplay'], referenceFormat: ReferenceFormat): string {
+export function formatReferenceDisplay(
+	verses: BibleVerse[],
+	translation: string,
+	defaultTranslation: string,
+	translationDisplay: ScriptureSettings['translationDisplay'],
+	referenceFormat: ReferenceFormat,
+	options: ReferenceDisplayOptions = {}
+): string {
 	if (verses.length === 0) {
 		return '';
 	}
 
 	const firstVerse = verses[0];
 	const lastVerse = verses[verses.length - 1];
-	const bookName = getBookDisplayName(firstVerse.book, referenceFormat);
 	const chapter = firstVerse.chapter;
+	const includeTranslation = shouldIncludeTranslation(translation, defaultTranslation, translationDisplay);
+	const translationSuffix = includeTranslation ? `, ${translation}` : '';
+
+	if (options.isChapterReference) {
+		return formatChapterDisplay(firstVerse.book, chapter, referenceFormat, translationSuffix);
+	}
 
 	let verseRange: string;
 	if (verses.length === 1) {
@@ -41,13 +56,18 @@ export function formatReferenceDisplay(verses: BibleVerse[], translation: string
 		verseRange = `${firstVerse.verse}–${lastVerse.chapter}:${lastVerse.verse}`;
 	}
 
-	const includeTranslation = shouldIncludeTranslation(translation, defaultTranslation, translationDisplay);
-	const translationSuffix = includeTranslation ? `, ${translation}` : '';
+	if (referenceFormat === 'chapter-verse') {
+		return `${chapter}:${verseRange}${translationSuffix}`;
+	}
+
+	const bookName = getBookDisplayName(firstVerse.book, referenceFormat);
 	return `${bookName} ${chapter}:${verseRange}${translationSuffix}`;
 }
 
 export function getBookDisplayName(bookName: string, referenceFormat: ReferenceFormat): string {
 	switch (referenceFormat) {
+		case 'chapter-verse':
+			return '';
 		case 'standard-abbrev':
 			return toTitleCaseAbbreviation(STANDARD_BOOK_ABBREVIATIONS[bookName] || bookName);
 		case 'english-abbrev':
@@ -56,6 +76,15 @@ export function getBookDisplayName(bookName: string, referenceFormat: ReferenceF
 		default:
 			return bookName;
 	}
+}
+
+function formatChapterDisplay(bookName: string, chapter: number, referenceFormat: ReferenceFormat, translationSuffix: string): string {
+	if (referenceFormat === 'chapter-verse') {
+		return `${chapter}${translationSuffix}`;
+	}
+
+	const displayBookName = getBookDisplayName(bookName, referenceFormat);
+	return `${displayBookName} ${chapter}${translationSuffix}`;
 }
 
 function shouldIncludeTranslation(translation: string, defaultTranslation: string, translationDisplay: ScriptureSettings['translationDisplay']): boolean {
