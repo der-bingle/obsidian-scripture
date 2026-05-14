@@ -7,6 +7,11 @@ import { formatReferenceDisplay } from './reference-format';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add';
+interface ParsedScriptureListEntry {
+	originalInput: string;
+	reference: string;
+	highlighted: boolean;
+}
 
 export class ScriptureListRenderer {
 	private static readonly FOLD_STATE_KEY = 'scripture-plugin:scripture-list-fold-state';
@@ -33,32 +38,43 @@ export class ScriptureListRenderer {
 	/**
 	 * Parse codeblock content into individual reference lines
 	 */
-	parseScriptureListInput(content: string): string[] {
+	parseScriptureListInput(content: string): ParsedScriptureListEntry[] {
 		return content
 			.split('\n')
 			.map(line => line.trim())
-			.filter(line => line.length > 0);
+			.filter(line => line.length > 0)
+			.map(line => {
+				const markerPattern = /^[-*]\s+/;
+				const highlighted = markerPattern.test(line);
+				const reference = highlighted ? line.replace(markerPattern, '').trim() : line;
+				return {
+					originalInput: line,
+					reference,
+					highlighted
+				};
+			});
 	}
 
 	/**
 	 * Parse and look up all references, returning processed data
 	 */
-	async parseAndLookupReferences(references: string[]): Promise<ProcessedReference[]> {
+	async parseAndLookupReferences(references: ParsedScriptureListEntry[]): Promise<ProcessedReference[]> {
 		const processed: ProcessedReference[] = [];
 
-		for (const input of references) {
+		for (const entry of references) {
 			try {
 				// Parse the reference and extract translation if specified
-				const { reference, translation } = this.parseReferenceAndTranslation(input);
+				const { reference, translation } = this.parseReferenceAndTranslation(entry.reference);
 				const translationToUse = translation || this.defaultTranslation;
 
 				// Find the translation object
 				const translationObj = this.translations.find(t => t.name === translationToUse);
 				if (!translationObj) {
 					processed.push({
-						originalInput: input,
+						originalInput: entry.originalInput,
 						parsedReference: reference,
 						translation: translationToUse,
+						highlighted: entry.highlighted,
 						error: `Translation "${translationToUse}" not found`
 					});
 					continue;
@@ -70,9 +86,10 @@ export class ScriptureListRenderer {
 
 				if (!matches || matches.length === 0 || !(matches[0] as any).ref) {
 					processed.push({
-						originalInput: input,
+						originalInput: entry.originalInput,
 						parsedReference: reference,
 						translation: translationToUse,
+						highlighted: entry.highlighted,
 						error: 'Invalid reference format'
 					});
 					continue;
@@ -85,9 +102,10 @@ export class ScriptureListRenderer {
 
 				if (!verses || verses.length === 0) {
 					processed.push({
-						originalInput: input,
+						originalInput: entry.originalInput,
 						parsedReference: reference,
 						translation: translationToUse,
+						highlighted: entry.highlighted,
 						error: 'Verses not found'
 					});
 					continue;
@@ -100,22 +118,24 @@ export class ScriptureListRenderer {
 				// Format the proper reference display (e.g., "John 3:16" or "John 3:16, NLT")
 				const displayRef = this.formatReferenceDisplay(verses, translationToUse, passageRef.type === 'chapter');
 
-				processed.push({
-					originalInput: input,
-					parsedReference: displayRef,
-					translation: translationToUse,
-					verses,
+					processed.push({
+						originalInput: entry.originalInput,
+						parsedReference: displayRef,
+						translation: translationToUse,
+						highlighted: entry.highlighted,
+						verses,
 					testament,
 					bookNumber,
 					isChapterReference: passageRef.type === 'chapter'
 				});
 
 			} catch (error) {
-				console.error('Error processing reference:', input, error);
+				console.error('Error processing reference:', entry.originalInput, error);
 				processed.push({
-					originalInput: input,
-					parsedReference: input,
+					originalInput: entry.originalInput,
+					parsedReference: entry.reference,
 					translation: this.defaultTranslation,
+					highlighted: entry.highlighted,
 					error: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
 				});
 			}
@@ -358,7 +378,12 @@ export class ScriptureListRenderer {
 
 		// Render reference rows
 		for (const ref of references) {
-			const row = tbody.createEl('tr', { cls: 'scripture-list-row' });
+			const rowClasses = ['scripture-list-row'];
+			if (ref.highlighted) {
+				rowClasses.push('scripture-list-row--highlighted');
+			}
+
+			const row = tbody.createEl('tr', { cls: rowClasses.join(' ') });
 			row.style.borderBottom = '1px solid var(--background-modifier-border)';
 
 			// Reference column

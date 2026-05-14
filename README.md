@@ -22,6 +22,10 @@ A comprehensive scripture study plugin for Obsidian that provides reference inse
 - **Bible Note Detection**: Automatically applies styling to Bible chapter notes in your vault
 - **Customizable Display**: Toggle between showing all verse numbers, first only, or none
 
+### 📋 Scripture List Rendering
+- **Code Block Table Rendering**: Render `scriptureList` code blocks as grouped scripture tables
+- **Row Highlighting**: Prefix a line with `- ` (or `* `) to highlight that rendered row
+
 ### 🎨 Formatting Options
 - **Verse Number Control**: Include, exclude, or show all but first verse numbers
 - **Translation Display**: Choose when to show translation names in callouts
@@ -147,6 +151,20 @@ The plugin includes comprehensive CSS styling for Bible notes with Style Setting
 - Text justification
 - Heading alignment
 - Margin and spacing
+
+### Highlighting in `scriptureList` code blocks
+
+Use the `scriptureList` code block with one reference per line:
+
+````markdown
+```scriptureList
+John 3:16
+- Romans 8:28-30
+* Psalm 23:1-6
+```
+````
+
+Lines prefixed with `- ` or `* ` are rendered as highlighted rows in the output table.
 
 ## License
 
