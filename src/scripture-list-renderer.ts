@@ -28,6 +28,45 @@ interface CodeBlockCursorTarget {
 	ch: number;
 }
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const parseReferenceAndTranslationFromTranslations = (
+	text: string,
+	translations: BibleTranslation[]
+): { reference: string; translation: string | null } => {
+	const trimmedText = text.trim();
+	const translationAlternates = translations
+		.map(translation => translation.name)
+		.filter(name => name.trim().length > 0)
+		.sort((a, b) => b.length - a.length)
+		.map(escapeRegExp)
+		.join('|');
+
+	if (!translationAlternates) {
+		return { reference: trimmedText, translation: null };
+	}
+
+	const translationPattern = new RegExp(`(?:,\\s*|\\s+|\\s*\\()(${translationAlternates})\\)?$`, 'i');
+	const match = trimmedText.match(translationPattern);
+
+	if (!match) {
+		return { reference: trimmedText, translation: null };
+	}
+
+	const foundTranslation = translations.find(t =>
+		t.name.toUpperCase() === match[1].toUpperCase()
+	);
+
+	if (!foundTranslation) {
+		return { reference: trimmedText, translation: null };
+	}
+
+	return {
+		reference: trimmedText.replace(translationPattern, '').trim(),
+		translation: foundTranslation.name
+	};
+};
+
 export class ScriptureListRenderer {
 	private static readonly FOLD_STATE_KEY = 'scripture-plugin:scripture-list-fold-state';
 	private dataLoader: BibleDataLoader;
@@ -148,23 +187,7 @@ export class ScriptureListRenderer {
 	 * Parse reference and extract translation if specified
 	 */
 	private parseReferenceAndTranslation(text: string): { reference: string; translation: string | null } {
-		// Look for translation patterns at the end: "John 3:16, NET" or "John 3:16, NLT"
-		const translationPattern = /,\s*([A-Z]{2,5})$/;
-		const match = text.match(translationPattern);
-
-		if (match) {
-			const possibleTranslation = match[1];
-			const foundTranslation = this.translations.find(t =>
-				t.name.toUpperCase() === possibleTranslation.toUpperCase()
-			);
-
-			if (foundTranslation) {
-				const reference = text.replace(translationPattern, '').trim();
-				return { reference, translation: foundTranslation.name };
-			}
-		}
-
-		return { reference: text.trim(), translation: null };
+		return parseReferenceAndTranslationFromTranslations(text, this.translations);
 	}
 
 	/**
