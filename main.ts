@@ -7,7 +7,7 @@ import { BibleDataLoader } from './src/bible-data-loader';
 import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
 import { BibleChapterNavigator } from './src/bible-chapter-navigator';
 import { BibleNoteTitleManager } from './src/bible-note-title-manager';
-import { ScriptureListRenderer } from './src/scripture-list-renderer';
+import { createScriptureListRenderContext, ScriptureListRenderer } from './src/scripture-list-renderer';
 import { ScriptureNoteSwitcherModal, type ScriptureNoteSuggestion } from './src/scripture-note-switcher';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
 import { DEFAULT_SETTINGS } from './src/types';
@@ -33,6 +33,7 @@ export default class Scripture extends Plugin {
 
 		// Register scriptureList codeblock processor
 		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
+			const renderContext = createScriptureListRenderContext(el, ctx);
 			const renderer = new ScriptureListRenderer(
 				this.dataLoader,
 				this.calloutFormatter,
@@ -46,7 +47,7 @@ export default class Scripture extends Plugin {
 
 			if (references.length === 0) {
 				// Empty codeblock - render empty state with edit option
-				renderer.renderEmptyState(el, ctx);
+				renderer.renderEmptyState(el, renderContext);
 				return;
 			}
 
@@ -54,7 +55,7 @@ export default class Scripture extends Plugin {
 			const processedReferences = await renderer.parseAndLookupReferences(references);
 
 			// Render table with section info for edit button
-			await renderer.renderTable(el, processedReferences, ctx);
+			await renderer.renderTable(el, processedReferences, renderContext);
 		});
 
 		// Add command to open reference modal
@@ -69,7 +70,7 @@ export default class Scripture extends Plugin {
 				}
 
 				// Check if there's selected text and if it contains a Bible reference
-				const selectedText = editor.getSelection().trim();
+				const selectedText = editor.getSelection();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
 
 				new ScriptureModal(
@@ -86,7 +87,9 @@ export default class Scripture extends Plugin {
 						}
 					},
 					this.settings.includeVerseNumbersOnInsert,
-					this.settings.referenceFormat
+					this.settings.referenceFormat,
+					true,
+					selectionInfo.cursorPosition
 				).open();
 			}
 		});
@@ -103,7 +106,7 @@ export default class Scripture extends Plugin {
 				}
 
 				// Check if there's selected text and if it contains a Bible reference
-				const selectedText = editor.getSelection().trim();
+				const selectedText = editor.getSelection();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
 
 				new ScriptureModal(
@@ -117,7 +120,8 @@ export default class Scripture extends Plugin {
 					},
 					this.settings.includeVerseNumbersOnInsert,
 					this.settings.referenceFormat,
-					false // Don't show verse numbers toggle for link-only insertion
+					false, // Don't show verse numbers toggle for link-only insertion
+					selectionInfo.cursorPosition
 				).open();
 			}
 		});
@@ -341,19 +345,21 @@ export default class Scripture extends Plugin {
 		this.calloutFormatter.insertScriptureLink(editor, reference, verses, translation, referenceFormat);
 	}
 
-	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null } {
+	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null; cursorPosition?: 'start' | 'end' } {
+		const trimmedText = selectedText.trim();
+
 		// Only check for references if the selection is reasonable length (not a whole document)
-		if (!selectedText || selectedText.length > 100 || selectedText.includes('\n')) {
+		if (!trimmedText || selectedText.length > 100 || selectedText.includes('\n')) {
 			return { reference: '', translation: null };
 		}
 
 		try {
-			const matchGenerator = detectReferences(selectedText);
+			const matchGenerator = detectReferences(trimmedText);
 			const matches = Array.from(matchGenerator);
 			
 			// If we found a valid reference, extract the reference and translation
 			if (matches && matches.length > 0 && (matches[0] as any).ref) {
-				const { reference, translation } = this.parseReferenceAndTranslation(selectedText);
+				const { reference, translation } = this.parseReferenceAndTranslation(trimmedText);
 				console.log('Found Bible reference in selection:', reference, translation ? `(${translation})` : '');
 				return { reference, translation };
 			}
@@ -362,7 +368,17 @@ export default class Scripture extends Plugin {
 			console.log('No Bible reference detected in selection');
 		}
 
+		if (this.isChapterVerseOnlyReference(trimmedText)) {
+			const reference = selectedText.startsWith(' ') ? selectedText : ` ${trimmedText}`;
+			console.log('Found chapter and verse selection:', reference);
+			return { reference, translation: null, cursorPosition: 'start' };
+		}
+
 		return { reference: '', translation: null };
+	}
+
+	private isChapterVerseOnlyReference(text: string): boolean {
+		return /^\d{1,3}:\d{1,3}(?:\s*[-–—]\s*(?:\d{1,3}:)?\d{1,3})?$/.test(text);
 	}
 
 	private parseReferenceAndTranslation(text: string): { reference: string; translation: string | null } {

@@ -1,4 +1,4 @@
-import { Notice, setIcon, MarkdownView } from 'obsidian';
+import { Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, Notice, setIcon, WorkspaceLeaf } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSettings } from './types';
 import { BibleDataLoader } from './bible-data-loader';
@@ -7,6 +7,26 @@ import { formatReferenceDisplay } from './reference-format';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add';
+
+export interface ScriptureListRenderContext {
+	sourcePath: string;
+	containerEl: HTMLElement;
+	getSectionInfo: () => MarkdownSectionInformation | null;
+}
+
+export const createScriptureListRenderContext = (
+	containerEl: HTMLElement,
+	ctx: MarkdownPostProcessorContext
+): ScriptureListRenderContext => ({
+	sourcePath: ctx.sourcePath,
+	containerEl,
+	getSectionInfo: () => ctx.getSectionInfo(containerEl)
+});
+
+interface CodeBlockCursorTarget {
+	line: number;
+	ch: number;
+}
 
 export class ScriptureListRenderer {
 	private static readonly FOLD_STATE_KEY = 'scripture-plugin:scripture-list-fold-state';
@@ -251,14 +271,14 @@ export class ScriptureListRenderer {
 	/**
 	 * Generate HTML table from processed references
 	 */
-	async renderTable(container: HTMLElement, processedReferences: ProcessedReference[], sectionInfo?: any): Promise<void> {
+	async renderTable(container: HTMLElement, processedReferences: ProcessedReference[], renderContext?: ScriptureListRenderContext): Promise<void> {
 		// Add wrapper for positioning
 		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
 		wrapper.style.position = 'relative';
 
 		// Add edit button at the top right
-		if (sectionInfo) {
-			this.renderListActionButtons(wrapper, sectionInfo, 'top');
+		if (renderContext) {
+			this.renderListActionButtons(wrapper, renderContext, 'top');
 		}
 
 		// Group by testament
@@ -273,22 +293,22 @@ export class ScriptureListRenderer {
 
 		// Render Old Testament section
 		if (oldTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'Old Testament', oldTestament, sectionInfo);
+			this.renderTestamentSection(wrapper, 'Old Testament', oldTestament, renderContext);
 		}
 
 		// Render New Testament section
 		if (newTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'New Testament', newTestament, sectionInfo);
+			this.renderTestamentSection(wrapper, 'New Testament', newTestament, renderContext);
 		}
 
 		// Render unknown testament section
 		if (unknownTestament.length > 0) {
-			this.renderTestamentSection(wrapper, 'Other', unknownTestament, sectionInfo);
+			this.renderTestamentSection(wrapper, 'Other', unknownTestament, renderContext);
 		}
 
 		// Add edit button at the bottom right
-		if (sectionInfo) {
-			this.renderListActionButtons(wrapper, sectionInfo, 'bottom');
+		if (renderContext) {
+			this.renderListActionButtons(wrapper, renderContext, 'bottom');
 		}
 	}
 
@@ -321,7 +341,7 @@ export class ScriptureListRenderer {
 	/**
 	 * Render a collapsible testament section with h6 header
 	 */
-	private renderTestamentSection(container: HTMLElement, testamentName: string, references: ProcessedReference[], sectionInfo?: any): void {
+	private renderTestamentSection(container: HTMLElement, testamentName: string, references: ProcessedReference[], renderContext?: ScriptureListRenderContext): void {
 		const section = container.createEl('div', { cls: 'scripture-list-testament-section' });
 		section.style.marginBottom = '16px';
 
@@ -348,7 +368,7 @@ export class ScriptureListRenderer {
 		table.style.borderCollapse = 'collapse';
 		table.style.marginTop = '8px';
 
-		const foldStateKey = this.getFoldStateKey(sectionInfo, testamentName);
+		const foldStateKey = this.getFoldStateKey(renderContext, testamentName);
 		let isExpanded = this.getStoredFoldState(foldStateKey);
 		table.style.display = isExpanded ? '' : 'none';
 		indicator.empty();
@@ -491,9 +511,9 @@ export class ScriptureListRenderer {
 		return formattedText;
 	}
 
-	private getFoldStateKey(sectionInfo: any, testamentName: string): string {
-		const sourcePath = typeof sectionInfo?.sourcePath === 'string' ? sectionInfo.sourcePath : 'unknown-source';
-		const lineStart = typeof sectionInfo?.lineStart === 'number' ? sectionInfo.lineStart : -1;
+	private getFoldStateKey(renderContext: ScriptureListRenderContext | undefined, testamentName: string): string {
+		const sourcePath = renderContext?.sourcePath ?? 'unknown-source';
+		const lineStart = renderContext?.getSectionInfo()?.lineStart ?? -1;
 		return `${sourcePath}:${lineStart}:${testamentName}`;
 	}
 
@@ -529,32 +549,32 @@ export class ScriptureListRenderer {
 	/**
 	 * Render edit button to switch to source mode
 	 */
-	public renderEmptyState(container: HTMLElement, sectionInfo?: any): void {
+	public renderEmptyState(container: HTMLElement, renderContext?: ScriptureListRenderContext): void {
 		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
 		const emptyMessage = wrapper.createDiv({ cls: 'scripture-list-empty' });
 		emptyMessage.textContent = 'No references provided';
 
-		if (sectionInfo) {
-			this.renderListActionButtons(wrapper, sectionInfo, 'inline');
+		if (renderContext) {
+			this.renderListActionButtons(wrapper, renderContext, 'inline');
 		}
 	}
 
 	private renderListActionButtons(
 		container: HTMLElement,
-		sectionInfo: any,
+		renderContext: ScriptureListRenderContext,
 		position: ScriptureListButtonPosition
 	): void {
 		const buttonContainer = container.createEl('div', {
 			cls: `scripture-list-edit-container scripture-list-edit-${position}`
 		});
 
-		this.renderListActionButton(buttonContainer, sectionInfo, 'edit');
-		this.renderListActionButton(buttonContainer, sectionInfo, 'add');
+		this.renderListActionButton(buttonContainer, renderContext, 'edit');
+		this.renderListActionButton(buttonContainer, renderContext, 'add');
 	}
 
 	private renderListActionButton(
 		container: HTMLElement,
-		sectionInfo: any,
+		renderContext: ScriptureListRenderContext,
 		action: ScriptureListAction
 	): void {
 		const actionConfig = action === 'add'
@@ -586,13 +606,22 @@ export class ScriptureListRenderer {
 			cls: 'scripture-edit-text'
 		});
 
-		// Handle click to switch to source mode
-		button.addEventListener('click', (e) => {
+		const consumeEditorMouseEvent = (e: MouseEvent | PointerEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
 			e.stopImmediatePropagation();
+		};
 
-			this.openCodeBlockForAction(sectionInfo, action);
+		button.addEventListener('pointerdown', consumeEditorMouseEvent);
+		button.addEventListener('mousedown', consumeEditorMouseEvent);
+
+		// Handle click to switch to source mode
+		button.addEventListener('click', (e) => {
+			consumeEditorMouseEvent(e);
+
+			setTimeout(() => {
+				this.openCodeBlockForAction(renderContext, action);
+			}, 0);
 		});
 
 		// Hover effect
@@ -604,24 +633,35 @@ export class ScriptureListRenderer {
 		});
 	}
 
-	private openCodeBlockForAction(sectionInfo: any, action: ScriptureListAction): void {
+	private openCodeBlockForAction(renderContext: ScriptureListRenderContext, action: ScriptureListAction): void {
 		const app = (window as any).app;
 		if (!app) return;
 
-		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
-		if (!activeView) return;
+		const markdownView = this.getMarkdownViewForRenderContext(app, renderContext);
+		if (!markdownView) return;
+
+		const sectionInfo = renderContext.getSectionInfo();
 
 		const applyAction = () => {
+			const editor = markdownView.editor;
+			let target: CodeBlockCursorTarget | null;
+
 			if (action === 'add') {
-				this.addBlankLineToCodeBlock(activeView.editor, sectionInfo);
-				return;
+				target = this.addBlankLineToCodeBlock(editor, sectionInfo);
+			} else {
+				target = this.getCodeBlockCursorTarget(editor, sectionInfo);
+				if (target) {
+					this.placeCursorInEditor(editor, target);
+				}
 			}
 
-			this.positionCursorInCodeBlock(activeView.editor, sectionInfo);
+			if (target) {
+				this.retryCursorPlacementIfNeeded(editor, target);
+			}
 		};
 
-		if (activeView.getMode() !== 'source') {
-			activeView.setMode('source');
+		if (markdownView.getMode() !== 'source') {
+			(markdownView as any).setMode('source');
 
 			setTimeout(() => {
 				applyAction();
@@ -632,7 +672,38 @@ export class ScriptureListRenderer {
 		applyAction();
 	}
 
-	private resolveCodeBlockRange(editor: any, sectionData?: any): { lineStart: number; lineEnd: number } | null {
+	private getMarkdownViewForRenderContext(app: any, renderContext: ScriptureListRenderContext): MarkdownView | null {
+		let matchingView: MarkdownView | null = null;
+
+		app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
+			if (matchingView || !(leaf.view instanceof MarkdownView)) {
+				return;
+			}
+
+			if (leaf.view.containerEl.contains(renderContext.containerEl)) {
+				matchingView = leaf.view;
+			}
+		});
+
+		return matchingView ?? app.workspace.getActiveViewOfType(MarkdownView);
+	}
+
+	private getCodeBlockCursorTarget(editor: Editor, sectionData: MarkdownSectionInformation | null): CodeBlockCursorTarget | null {
+		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
+		if (!codeBlockRange) {
+			return null;
+		}
+
+		const targetLine = Math.max(codeBlockRange.lineStart + 1, codeBlockRange.lineEnd - 1);
+		const lineContent = editor.getLine(targetLine) || '';
+
+		return {
+			line: targetLine,
+			ch: lineContent.length
+		};
+	}
+
+	private resolveCodeBlockRange(editor: Editor, sectionData?: MarkdownSectionInformation | null): { lineStart: number; lineEnd: number } | null {
 		if (sectionData?.lineStart !== undefined && sectionData?.lineEnd !== undefined) {
 			return {
 				lineStart: sectionData.lineStart,
@@ -664,29 +735,30 @@ export class ScriptureListRenderer {
 	/**
 	 * Position cursor inside the codeblock in source mode
 	 */
-	private positionCursorInCodeBlock(editor: any, sectionData: any): void {
-		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
-		if (!codeBlockRange) {
-			return;
-		}
-
-		const targetLine = Math.max(codeBlockRange.lineStart + 1, codeBlockRange.lineEnd - 1);
-		const lineContent = editor.getLine(targetLine) || '';
-
-		editor.setCursor({ line: targetLine, ch: lineContent.length });
-
+	private placeCursorInEditor(editor: Editor, target: CodeBlockCursorTarget): void {
+		editor.setCursor(target);
 		editor.scrollIntoView({
-			from: { line: targetLine, ch: 0 },
-			to: { line: targetLine, ch: lineContent.length }
+			from: target,
+			to: target
 		});
-
 		editor.focus();
 	}
 
-	private addBlankLineToCodeBlock(editor: any, sectionData: any): void {
+	private retryCursorPlacementIfNeeded(editor: Editor, target: CodeBlockCursorTarget): void {
+		setTimeout(() => {
+			const cursor = editor.getCursor();
+			if (cursor.line === target.line && cursor.ch === target.ch) {
+				return;
+			}
+
+			this.placeCursorInEditor(editor, target);
+		}, 75);
+	}
+
+	private addBlankLineToCodeBlock(editor: Editor, sectionData: MarkdownSectionInformation | null): CodeBlockCursorTarget | null {
 		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
 		if (!codeBlockRange) {
-			return;
+			return null;
 		}
 
 		const insertAtLine = codeBlockRange.lineEnd - 1;
@@ -695,12 +767,9 @@ export class ScriptureListRenderer {
 		editor.replaceRange('\n', { line: insertAtLine, ch: insertAtCh });
 
 		const targetLine = insertAtLine + 1;
-		editor.setCursor({ line: targetLine, ch: 0 });
-		editor.scrollIntoView({
-			from: { line: targetLine, ch: 0 },
-			to: { line: targetLine, ch: 0 }
-		});
-		editor.focus();
+		const target = { line: targetLine, ch: 0 };
+		this.placeCursorInEditor(editor, target);
+		return target;
 	}
 
 	/**

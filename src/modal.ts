@@ -19,15 +19,17 @@ export class ScriptureModal extends Modal {
 	private insertAsPlainTextToggle: ToggleComponent;
 	private insertAsPlainTextValue: boolean;
 	private referenceFormat: ReferenceFormat;
+	private initialCursorPosition: 'start' | 'end';
 
 	// defaultIncludeVerseNumbers is the default value loaded from settings
 	// showVerseNumbersToggle determines whether to show the toggle in the UI
-	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultReferenceFormat: ReferenceFormat, showVerseNumbersToggle: boolean = true) {
+	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultReferenceFormat: ReferenceFormat, showVerseNumbersToggle: boolean = true, initialCursorPosition: 'start' | 'end' = 'end') {
 		super(app);
 		this.translations = translations;
 		this.selectedTranslation = defaultTranslation || (translations.length > 0 ? translations[0].name : '');
 		this.dataLoader = dataLoader;
 		this.initialReference = initialReference || '';
+		this.initialCursorPosition = initialCursorPosition;
 		this.onSubmit = onSubmit;
 		this.includeVerseNumbersValue = defaultIncludeVerseNumbers;
 		this.showVerseNumbersToggle = showVerseNumbersToggle;
@@ -61,7 +63,13 @@ export class ScriptureModal extends Modal {
 		this.createButtons(contentEl);
 
 		// Focus input when modal opens
-		setTimeout(() => this.inputEl.focus(), 100);
+		setTimeout(() => {
+			this.inputEl.focus();
+			if (this.initialReference) {
+				const cursorPosition = this.initialCursorPosition === 'start' ? 0 : this.inputEl.value.length;
+				this.inputEl.setSelectionRange(cursorPosition, cursorPosition);
+			}
+		}, 100);
 	}
 
 	private createReferenceInput(container: HTMLElement): void {
