@@ -428,3 +428,12 @@ body:not(.bible-text-justify) .bible .cm-line {
 .scripture-list-reference-uppercase .scripture-list-table td:first-child {
     text-transform: uppercase;
 }
+
+/* Scripture list highlighted row */
+.scripture-list-row--highlighted {
+    background-color: var(--background-modifier-hover);
+}
+
+.scripture-list-row--highlighted td:first-child {
+    box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
