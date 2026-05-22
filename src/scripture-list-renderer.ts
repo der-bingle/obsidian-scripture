@@ -216,6 +216,10 @@ export class ScriptureListRenderer {
 		processedReferences: ProcessedReference[],
 		renderContext?: ScriptureListRenderContext
 	): Promise<void> {
+		if (!this.settings.scriptureListReformatSource) {
+			return;
+		}
+
 		if (!renderContext) {
 			return;
 		}

@@ -213,28 +213,41 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Scripture List Source Reference Format')
-			.setDesc('Format used when normalizing references inside scriptureList codeblock source')
-			.addDropdown(dropdown => dropdown
-				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
-				.addOption('english-abbrev', 'English abbreviations from scripture-references')
-				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
-				.setValue(this.plugin.settings.scriptureListSourceReferenceFormat)
-				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
-					this.plugin.settings.scriptureListSourceReferenceFormat = value;
+			.setName('Reformat Scripture List Source')
+			.setDesc('Automatically normalize references inside scriptureList codeblock source')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.scriptureListReformatSource)
+				.onChange(async (value) => {
+					this.plugin.settings.scriptureListReformatSource = value;
 					await this.plugin.saveSettings();
+					this.display();
 				}));
 
-		new Setting(containerEl)
-			.setName('Reorder Scripture List Source')
-			.setDesc('Automatically reorder scriptureList source lines by book order, with a blank line between testaments')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.scriptureListReorderSourceByBook)
-				.onChange(async (value) => {
-					this.plugin.settings.scriptureListReorderSourceByBook = value;
-					await this.plugin.saveSettings();
-				}));
+		if (this.plugin.settings.scriptureListReformatSource) {
+			new Setting(containerEl)
+				.setName('Scripture List Source Reference Format')
+				.setDesc('Format used when normalizing references inside scriptureList codeblock source')
+				.addDropdown(dropdown => dropdown
+					.addOption('full-name', 'Full book name (James 1:16–18)')
+					.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+					.addOption('english-abbrev', 'English abbreviations from scripture-references')
+					.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+					.setValue(this.plugin.settings.scriptureListSourceReferenceFormat)
+					.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
+						this.plugin.settings.scriptureListSourceReferenceFormat = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Reorder Scripture List Source')
+				.setDesc('Automatically reorder scriptureList source lines by book order, with a blank line between testaments')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.scriptureListReorderSourceByBook)
+					.onChange(async (value) => {
+						this.plugin.settings.scriptureListReorderSourceByBook = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 
 		// Linking strategy setting
 		new Setting(containerEl)

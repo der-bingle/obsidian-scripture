@@ -61,6 +61,7 @@ export interface ScriptureSettings {
 	translationDisplay: 'never' | 'always' | 'except-default';
 	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	scriptureListReformatSource: boolean;
 	scriptureListSourceReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 	scriptureListReorderSourceByBook: boolean;
 	linkingStrategy: 'default-translation' | 'verse-translation';
@@ -81,6 +82,7 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	translationDisplay: 'except-default',
 	referenceFormat: 'full-name',
 	scriptureListReferenceFormat: 'full-name',
+	scriptureListReformatSource: false,
 	scriptureListSourceReferenceFormat: 'standard-abbrev',
 	scriptureListReorderSourceByBook: false,
 	linkingStrategy: 'default-translation',
