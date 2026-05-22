@@ -35,6 +35,7 @@ export default class Scripture extends Plugin {
 		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
 			const renderContext = createScriptureListRenderContext(el, ctx);
 			const renderer = new ScriptureListRenderer(
+				this.app,
 				this.dataLoader,
 				this.calloutFormatter,
 				this.settings.translations,
@@ -53,6 +54,8 @@ export default class Scripture extends Plugin {
 
 			// Process references
 			const processedReferences = await renderer.parseAndLookupReferences(references);
+
+			await renderer.normalizeCodeBlockSource(source, processedReferences, renderContext);
 
 			// Render table with section info for edit button
 			await renderer.renderTable(el, processedReferences, renderContext);

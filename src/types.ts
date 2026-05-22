@@ -61,6 +61,8 @@ export interface ScriptureSettings {
 	translationDisplay: 'never' | 'always' | 'except-default';
 	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	scriptureListSourceReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	scriptureListReorderSourceByBook: boolean;
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
 	/** Default for the insert modal: whether to include verse numbers when inserting multi-verse callouts */
@@ -79,6 +81,8 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	translationDisplay: 'except-default',
 	referenceFormat: 'full-name',
 	scriptureListReferenceFormat: 'full-name',
+	scriptureListSourceReferenceFormat: 'standard-abbrev',
+	scriptureListReorderSourceByBook: false,
 	linkingStrategy: 'default-translation',
 	includeHiddenLinks: false,
 	includeVerseNumbersOnInsert: false,

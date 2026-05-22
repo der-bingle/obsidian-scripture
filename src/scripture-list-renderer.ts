@@ -1,4 +1,4 @@
-import { Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, Notice, setIcon, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, Notice, setIcon, TFile, WorkspaceLeaf } from 'obsidian';
 import { detectReferences, PassageReference } from 'scripture-references';
 import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSettings } from './types';
 import { BibleDataLoader } from './bible-data-loader';
@@ -26,6 +26,11 @@ export const createScriptureListRenderContext = (
 interface CodeBlockCursorTarget {
 	line: number;
 	ch: number;
+}
+
+interface SourceLineReference {
+	originalLine: string;
+	processedReference?: ProcessedReference;
 }
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -69,6 +74,7 @@ const parseReferenceAndTranslationFromTranslations = (
 
 export class ScriptureListRenderer {
 	private static readonly FOLD_STATE_KEY = 'scripture-plugin:scripture-list-fold-state';
+	private app: App;
 	private dataLoader: BibleDataLoader;
 	private calloutFormatter: CalloutFormatter;
 	private translations: BibleTranslation[];
@@ -76,12 +82,14 @@ export class ScriptureListRenderer {
 	private settings: ScriptureSettings;
 
 	constructor(
+		app: App,
 		dataLoader: BibleDataLoader,
 		calloutFormatter: CalloutFormatter,
 		translations: BibleTranslation[],
 		defaultTranslation: string,
 		settings: ScriptureSettings
 	) {
+		this.app = app;
 		this.dataLoader = dataLoader;
 		this.calloutFormatter = calloutFormatter;
 		this.translations = translations;
@@ -181,6 +189,171 @@ export class ScriptureListRenderer {
 		}
 
 		return processed;
+	}
+
+	async normalizeCodeBlockSource(
+		source: string,
+		processedReferences: ProcessedReference[],
+		renderContext?: ScriptureListRenderContext
+	): Promise<void> {
+		if (!renderContext) {
+			return;
+		}
+
+		const normalizedSource = this.buildNormalizedSource(source, processedReferences);
+		if (normalizedSource === source) {
+			return;
+		}
+
+		const sectionInfo = renderContext.getSectionInfo();
+		if (!sectionInfo) {
+			return;
+		}
+
+		const file = this.app.vault.getAbstractFileByPath(renderContext.sourcePath);
+		if (!(file instanceof TFile)) {
+			return;
+		}
+
+		try {
+			await this.app.vault.process(file, (content) => {
+				const lines = content.split('\n');
+				const startLine = sectionInfo.lineStart + 1;
+				const endLine = sectionInfo.lineEnd;
+
+				if (startLine > endLine || startLine < 0 || endLine > lines.length) {
+					return content;
+				}
+
+				const currentSource = lines.slice(startLine, endLine).join('\n');
+				if (currentSource === normalizedSource) {
+					return content;
+				}
+
+				lines.splice(startLine, endLine - startLine, ...normalizedSource.split('\n'));
+				return lines.join('\n');
+			});
+		} catch (error) {
+			console.error('Failed to normalize scriptureList source:', error);
+		}
+	}
+
+	private buildNormalizedSource(source: string, processedReferences: ProcessedReference[]): string {
+		const sourceLines = this.mapSourceLinesToReferences(source, processedReferences);
+
+		if (!this.settings.scriptureListReorderSourceByBook) {
+			return sourceLines
+				.map(sourceLine => this.normalizeSourceLine(sourceLine) ?? sourceLine.originalLine)
+				.join('\n');
+		}
+
+		const validReferences = sourceLines
+			.map(sourceLine => sourceLine.processedReference)
+			.filter((reference): reference is ProcessedReference => this.canNormalizeReference(reference))
+			.sort((a, b) => this.compareReferencesByBookOrder(a, b));
+
+		const normalizedValidLines = this.buildSortedSourceLines(validReferences);
+		let nextValidLineIndex = 0;
+		const normalizedLines: string[] = [];
+
+		for (const sourceLine of sourceLines) {
+			if (sourceLine.originalLine.trim().length === 0) {
+				continue;
+			}
+
+			if (!this.canNormalizeReference(sourceLine.processedReference)) {
+				normalizedLines.push(sourceLine.originalLine);
+				continue;
+			}
+
+			const nextLine = normalizedValidLines[nextValidLineIndex];
+			nextValidLineIndex += 1;
+
+			if (nextLine === undefined) {
+				normalizedLines.push(sourceLine.originalLine);
+				continue;
+			}
+
+			if (nextLine === '') {
+				normalizedLines.push('');
+				normalizedLines.push(normalizedValidLines[nextValidLineIndex] ?? sourceLine.originalLine);
+				nextValidLineIndex += 1;
+				continue;
+			}
+
+			normalizedLines.push(nextLine);
+		}
+
+		return normalizedLines.join('\n');
+	}
+
+	private mapSourceLinesToReferences(source: string, processedReferences: ProcessedReference[]): SourceLineReference[] {
+		let nextReferenceIndex = 0;
+
+		return source.split('\n').map(originalLine => {
+			if (originalLine.trim().length === 0) {
+				return { originalLine };
+			}
+
+			const processedReference = processedReferences[nextReferenceIndex];
+			nextReferenceIndex += 1;
+
+			return {
+				originalLine,
+				processedReference
+			};
+		});
+	}
+
+	private normalizeSourceLine(sourceLine: SourceLineReference): string | null {
+		const processedReference = sourceLine.processedReference;
+		if (!this.canNormalizeReference(processedReference)) {
+			return null;
+		}
+
+		return this.formatSourceReference(processedReference);
+	}
+
+	private canNormalizeReference(reference: ProcessedReference | undefined): reference is ProcessedReference {
+		return Boolean(reference && !reference.error && reference.verses && reference.verses.length > 0);
+	}
+
+	private buildSortedSourceLines(references: ProcessedReference[]): string[] {
+		const lines: string[] = [];
+
+		for (let i = 0; i < references.length; i++) {
+			const previous = references[i - 1];
+			const current = references[i];
+			if (previous && this.shouldSeparateTestaments(previous, current)) {
+				lines.push('');
+			}
+
+			lines.push(this.formatSourceReference(current));
+		}
+
+		return lines;
+	}
+
+	private shouldSeparateTestaments(previous: ProcessedReference, current: ProcessedReference): boolean {
+		return Boolean(
+			previous.testament &&
+			current.testament &&
+			previous.testament !== current.testament
+		);
+	}
+
+	private formatSourceReference(reference: ProcessedReference): string {
+		const referenceText = formatReferenceDisplay(
+			reference.verses ?? [],
+			reference.translation,
+			this.defaultTranslation,
+			'never',
+			this.settings.scriptureListSourceReferenceFormat,
+			{ isChapterReference: reference.isChapterReference }
+		);
+		const explicitTranslation = this.parseReferenceAndTranslation(reference.originalInput).translation;
+
+		return explicitTranslation ? `${referenceText}, ${explicitTranslation}` : referenceText;
 	}
 
 	/**
@@ -339,26 +512,25 @@ export class ScriptureListRenderer {
 	 * Sort references by book order, then chapter, then verse
 	 */
 	private sortReferencesByBookOrder(references: ProcessedReference[]): void {
-		references.sort((a, b) => {
-			// First, sort by book number
-			const bookA = a.bookNumber ?? Number.MAX_SAFE_INTEGER;
-			const bookB = b.bookNumber ?? Number.MAX_SAFE_INTEGER;
-			if (bookA !== bookB) {
-				return bookA - bookB;
-			}
+		references.sort((a, b) => this.compareReferencesByBookOrder(a, b));
+	}
 
-			// If same book, sort by chapter
-			const chapterA = a.verses?.[0]?.chapter ?? 0;
-			const chapterB = b.verses?.[0]?.chapter ?? 0;
-			if (chapterA !== chapterB) {
-				return chapterA - chapterB;
-			}
+	private compareReferencesByBookOrder(a: ProcessedReference, b: ProcessedReference): number {
+		const bookA = a.bookNumber ?? Number.MAX_SAFE_INTEGER;
+		const bookB = b.bookNumber ?? Number.MAX_SAFE_INTEGER;
+		if (bookA !== bookB) {
+			return bookA - bookB;
+		}
 
-			// If same chapter, sort by verse
-			const verseA = a.verses?.[0]?.verse ?? 0;
-			const verseB = b.verses?.[0]?.verse ?? 0;
-			return verseA - verseB;
-		});
+		const chapterA = a.verses?.[0]?.chapter ?? 0;
+		const chapterB = b.verses?.[0]?.chapter ?? 0;
+		if (chapterA !== chapterB) {
+			return chapterA - chapterB;
+		}
+
+		const verseA = a.verses?.[0]?.verse ?? 0;
+		const verseB = b.verses?.[0]?.verse ?? 0;
+		return verseA - verseB;
 	}
 
 	/**
