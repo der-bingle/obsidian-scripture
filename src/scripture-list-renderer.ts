@@ -242,8 +242,13 @@ export class ScriptureListRenderer {
 		try {
 			await this.app.vault.process(file, (content) => {
 				const lines = content.split('\n');
-				const startLine = sectionInfo.lineStart + 1;
-				const endLine = sectionInfo.lineEnd;
+				const codeBlockRange = this.resolveCodeBlockRangeFromLines(lines, sectionInfo);
+				if (!codeBlockRange) {
+					return content;
+				}
+
+				const startLine = codeBlockRange.lineStart + 1;
+				const endLine = codeBlockRange.lineEnd;
 
 				if (startLine > endLine || startLine < 0 || endLine > lines.length) {
 					return content;
@@ -918,7 +923,9 @@ export class ScriptureListRenderer {
 			return null;
 		}
 
-		const targetLine = Math.max(codeBlockRange.lineStart + 1, codeBlockRange.lineEnd - 1);
+		const targetLine = codeBlockRange.lineStart + 1 < codeBlockRange.lineEnd
+			? codeBlockRange.lineEnd - 1
+			: codeBlockRange.lineEnd;
 		const lineContent = editor.getLine(targetLine) || '';
 
 		return {
@@ -928,20 +935,45 @@ export class ScriptureListRenderer {
 	}
 
 	private resolveCodeBlockRange(editor: Editor, sectionData?: MarkdownSectionInformation | null): { lineStart: number; lineEnd: number } | null {
-		if (sectionData?.lineStart !== undefined && sectionData?.lineEnd !== undefined) {
-			return {
-				lineStart: sectionData.lineStart,
-				lineEnd: sectionData.lineEnd
-			};
-		}
-
 		const content = editor.getValue();
 		const lines = content.split('\n');
 
-		for (let i = 0; i < lines.length; i++) {
-			if (lines[i].trim() === '```scriptureList' || lines[i].trim().startsWith('```scriptureList ')) {
+		return this.resolveCodeBlockRangeFromLines(lines, sectionData);
+	}
+
+	private resolveCodeBlockRangeFromLines(lines: string[], sectionData?: MarkdownSectionInformation | null): { lineStart: number; lineEnd: number } | null {
+		const isScriptureListOpening = (line: string): boolean =>
+			line.trim() === '```scriptureList' || line.trim().startsWith('```scriptureList ');
+
+		const isClosingFence = (line: string): boolean => line.trim() === '```';
+
+		if (sectionData?.lineStart !== undefined) {
+			const startAt = Math.min(sectionData.lineStart, lines.length - 1);
+
+			for (let i = startAt; i >= 0; i--) {
+				if (!isScriptureListOpening(lines[i])) {
+					continue;
+				}
+
 				for (let j = i + 1; j < lines.length; j++) {
-					if (lines[j].trim() === '```') {
+					if (isClosingFence(lines[j])) {
+						if (sectionData.lineStart <= j || sectionData.lineEnd === undefined || sectionData.lineEnd <= j + 1) {
+							return {
+								lineStart: i,
+								lineEnd: j
+							};
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
+		for (let i = 0; i < lines.length; i++) {
+			if (isScriptureListOpening(lines[i])) {
+				for (let j = i + 1; j < lines.length; j++) {
+					if (isClosingFence(lines[j])) {
 						return {
 							lineStart: i,
 							lineEnd: j
@@ -985,12 +1017,12 @@ export class ScriptureListRenderer {
 			return null;
 		}
 
-		const insertAtLine = codeBlockRange.lineEnd - 1;
-		const insertAtCh = (editor.getLine(insertAtLine) || '').length;
+		const insertAtLine = codeBlockRange.lineEnd;
+		const insertAtCh = 0;
 
 		editor.replaceRange('\n', { line: insertAtLine, ch: insertAtCh });
 
-		const targetLine = insertAtLine + 1;
+		const targetLine = insertAtLine;
 		const target = { line: targetLine, ch: 0 };
 		this.placeCursorInEditor(editor, target);
 		return target;
