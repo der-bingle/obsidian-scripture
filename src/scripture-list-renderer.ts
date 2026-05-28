@@ -6,7 +6,7 @@ import { CalloutFormatter } from './callout-formatter';
 import { formatReferenceDisplay } from './reference-format';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
-type ScriptureListAction = 'edit' | 'add';
+type ScriptureListAction = 'edit' | 'add' | 'paste';
 interface ParsedScriptureListEntry {
 	originalInput: string;
 	reference: string;
@@ -799,6 +799,7 @@ export class ScriptureListRenderer {
 
 		this.renderListActionButton(buttonContainer, renderContext, 'edit');
 		this.renderListActionButton(buttonContainer, renderContext, 'add');
+		this.renderListActionButton(buttonContainer, renderContext, 'paste');
 	}
 
 	private renderListActionButton(
@@ -806,17 +807,23 @@ export class ScriptureListRenderer {
 		renderContext: ScriptureListRenderContext,
 		action: ScriptureListAction
 	): void {
-		const actionConfig = action === 'add'
-			? {
+		const actionConfig = {
+			add: {
 				ariaLabel: 'Add scripture to list',
 				icon: 'plus',
 				text: 'Add Scripture'
-			}
-			: {
+			},
+			edit: {
 				ariaLabel: 'Edit scripture list',
 				icon: 'edit',
 				text: 'Edit List'
-			};
+			},
+			paste: {
+				ariaLabel: 'Paste scripture from clipboard',
+				icon: 'clipboard-paste',
+				text: 'Paste Scripture'
+			}
+		}[action];
 
 		const button = container.createEl('button', {
 			cls: 'scripture-edit-button',
@@ -844,9 +851,13 @@ export class ScriptureListRenderer {
 		button.addEventListener('pointerdown', consumeEditorMouseEvent);
 		button.addEventListener('mousedown', consumeEditorMouseEvent);
 
-		// Handle click to switch to source mode
-		button.addEventListener('click', (e) => {
+		button.addEventListener('click', async (e) => {
 			consumeEditorMouseEvent(e);
+
+			if (action === 'paste') {
+				await this.pasteReferenceFromClipboard(renderContext);
+				return;
+			}
 
 			setTimeout(() => {
 				this.openCodeBlockForAction(renderContext, action);
@@ -860,6 +871,75 @@ export class ScriptureListRenderer {
 		button.addEventListener('mouseleave', () => {
 			button.style.color = 'var(--text-muted)';
 		});
+	}
+
+	private async pasteReferenceFromClipboard(renderContext: ScriptureListRenderContext): Promise<void> {
+		let clipboardText: string;
+		try {
+			clipboardText = await navigator.clipboard.readText();
+		} catch (error) {
+			console.error('Clipboard read failed:', error);
+			new Notice('Unable to read clipboard in this environment');
+			return;
+		}
+
+		if (!clipboardText.trim()) {
+			new Notice('Clipboard is empty');
+			return;
+		}
+
+		const reference = this.extractFirstScriptureListReference(clipboardText);
+		if (!reference) {
+			new Notice('No scripture reference found in clipboard');
+			return;
+		}
+
+		const [processedReference] = await this.parseAndLookupReferences([{
+			originalInput: reference,
+			reference,
+			highlighted: false
+		}]);
+
+		if (!processedReference || processedReference.error || !processedReference.verses || processedReference.verses.length === 0) {
+			new Notice(processedReference?.error || 'Unable to validate scripture reference');
+			return;
+		}
+
+		await this.appendLineToCodeBlockSource(renderContext, this.formatSourceReference(processedReference));
+	}
+
+	private extractFirstScriptureListReference(text: string): string | null {
+		const match = Array.from(detectReferences(text))[0] as any;
+		if (!match?.text) {
+			return null;
+		}
+
+		const referenceText = String(match.text).trim();
+		const suffixStart = typeof match.index === 'number'
+			? match.index + String(match.text).length
+			: text.indexOf(String(match.text)) + String(match.text).length;
+		const suffix = suffixStart >= 0
+			? this.extractTrailingTranslationSuffix(text.slice(suffixStart))
+			: null;
+
+		return suffix ? `${referenceText}, ${suffix}` : referenceText;
+	}
+
+	private extractTrailingTranslationSuffix(text: string): string | null {
+		const trimmedText = text.trimStart();
+		const translationsByLength = [...this.translations]
+			.filter(translation => translation.name.trim().length > 0)
+			.sort((a, b) => b.name.length - a.name.length);
+
+		for (const translation of translationsByLength) {
+			const escapedName = escapeRegExp(translation.name);
+			const suffixPattern = new RegExp(`^(?:,\\s*|\\(\\s*|\\s*)(${escapedName})(?:\\s*\\))?(?=$|[\\s,.;:!?\\)])`, 'i');
+			if (suffixPattern.test(trimmedText)) {
+				return translation.name;
+			}
+		}
+
+		return null;
 	}
 
 	private openCodeBlockForAction(renderContext: ScriptureListRenderContext, action: ScriptureListAction): void {
@@ -899,6 +979,46 @@ export class ScriptureListRenderer {
 		}
 
 		applyAction();
+	}
+
+	private async appendLineToCodeBlockSource(renderContext: ScriptureListRenderContext, line: string): Promise<void> {
+		const sectionInfo = renderContext.getSectionInfo();
+		if (!sectionInfo) {
+			new Notice('Unable to locate scripture list');
+			return;
+		}
+
+		const file = this.app.vault.getAbstractFileByPath(renderContext.sourcePath);
+		if (!(file instanceof TFile)) {
+			new Notice('Unable to locate scripture list file');
+			return;
+		}
+
+		let didAppend = false;
+
+		try {
+			await this.app.vault.process(file, (content) => {
+				const lines = content.split('\n');
+				const codeBlockRange = this.resolveCodeBlockRangeFromLines(lines, sectionInfo);
+				if (!codeBlockRange) {
+					return content;
+				}
+
+				lines.splice(codeBlockRange.lineEnd, 0, line);
+				didAppend = true;
+				return lines.join('\n');
+			});
+		} catch (error) {
+			console.error('Failed to append scripture list reference:', error);
+			new Notice('Failed to update scripture list');
+			return;
+		}
+
+		if (didAppend) {
+			new Notice(`Added ${line} to scripture list`);
+		} else {
+			new Notice('Unable to locate scripture list');
+		}
 	}
 
 	private getMarkdownViewForRenderContext(app: any, renderContext: ScriptureListRenderContext): MarkdownView | null {
