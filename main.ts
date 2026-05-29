@@ -10,6 +10,7 @@ import { BibleNoteTitleManager } from './src/bible-note-title-manager';
 import { createScriptureListRenderContext, ScriptureListRenderer } from './src/scripture-list-renderer';
 import { ScriptureNoteSwitcherModal, type ScriptureNoteSuggestion } from './src/scripture-note-switcher';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation } from './src/types';
+import type { InsertionTarget } from './src/callout-formatter';
 import { DEFAULT_SETTINGS } from './src/types';
 
 export default class Scripture extends Plugin {
@@ -75,6 +76,7 @@ export default class Scripture extends Plugin {
 				// Check if there's selected text and if it contains a Bible reference
 				const selectedText = editor.getSelection();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
+				const insertionTarget = this.getInsertionTarget(editor, selectedText);
 
 				new ScriptureModal(
 					this.app,
@@ -84,9 +86,9 @@ export default class Scripture extends Plugin {
 					selectionInfo.reference,
 					(reference, verses, translation, includeVerseNumbers, insertAsPlainText, referenceFormat) => {
 						if (insertAsPlainText) {
-							this.insertPlainText(editor, verses, includeVerseNumbers);
+							this.insertPlainText(editor, verses, includeVerseNumbers, insertionTarget);
 						} else {
-							this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers, referenceFormat);
+							this.insertScriptureCallout(editor, reference, verses, translation, includeVerseNumbers, referenceFormat, insertionTarget);
 						}
 					},
 					this.settings.includeVerseNumbersOnInsert,
@@ -111,6 +113,7 @@ export default class Scripture extends Plugin {
 				// Check if there's selected text and if it contains a Bible reference
 				const selectedText = editor.getSelection();
 				const selectionInfo = this.extractReferenceFromSelection(selectedText);
+				const insertionTarget = this.getInsertionTarget(editor, selectedText);
 
 				new ScriptureModal(
 					this.app,
@@ -119,7 +122,7 @@ export default class Scripture extends Plugin {
 					this.dataLoader,
 					selectionInfo.reference,
 					(reference, verses, translation, includeVerseNumbers, insertAsPlainText, referenceFormat) => {
-						this.insertScriptureLink(editor, reference, verses, translation, referenceFormat);
+						this.insertScriptureLink(editor, reference, verses, translation, referenceFormat, insertionTarget);
 					},
 					this.settings.includeVerseNumbersOnInsert,
 					this.settings.referenceFormat,
@@ -332,20 +335,35 @@ export default class Scripture extends Plugin {
 		}
 	}
 
-	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean, referenceFormat?: ScriptureSettings['referenceFormat']) {
+	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean, referenceFormat?: ScriptureSettings['referenceFormat'], insertionTarget?: InsertionTarget) {
 		// If includeVerseNumbers not provided, fall back to global setting
 		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
-		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers, referenceFormat);
+		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers, referenceFormat, insertionTarget);
 	}
 
-	private insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers?: boolean) {
+	private insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers?: boolean, insertionTarget?: InsertionTarget) {
 		// If includeVerseNumbers not provided, fall back to global setting
 		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
-		this.calloutFormatter.insertPlainText(editor, verses, includeNumbers);
+		this.calloutFormatter.insertPlainText(editor, verses, includeNumbers, insertionTarget);
 	}
 
-	private insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ScriptureSettings['referenceFormat']) {
-		this.calloutFormatter.insertScriptureLink(editor, reference, verses, translation, referenceFormat);
+	private insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ScriptureSettings['referenceFormat'], insertionTarget?: InsertionTarget) {
+		this.calloutFormatter.insertScriptureLink(editor, reference, verses, translation, referenceFormat, insertionTarget);
+	}
+
+	private getInsertionTarget(editor: Editor, selectedText: string): InsertionTarget {
+		if (selectedText.trim()) {
+			return {
+				from: editor.getCursor('from'),
+				to: editor.getCursor('to')
+			};
+		}
+
+		const cursor = editor.getCursor();
+		return {
+			from: cursor,
+			to: cursor
+		};
 	}
 
 	private extractReferenceFromSelection(selectedText: string): { reference: string; translation: string | null; cursorPosition?: 'start' | 'end' } {

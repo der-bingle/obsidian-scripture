@@ -1,6 +1,6 @@
 /* @settings
 
-name: Scripture Plugin
+name: Scripture
 id: scripture-plugin
 settings:
     -
@@ -31,10 +31,34 @@ settings:
     -
         id: bible-verse-color
         title: Verse Number Color
-        description: Color of verse numbers (uses theme's faint text color by default)
-        type: variable-color
-        format: hex
-        default: '#888888'
+        description: Theme color for verse numbers
+        type: variable-select
+        default: var(--color-red)
+        options:
+            -
+                label: Red
+                value: var(--color-red)
+            -
+                label: Orange
+                value: var(--color-orange)
+            -
+                label: Yellow
+                value: var(--color-yellow)
+            -
+                label: Green
+                value: var(--color-green)
+            -
+                label: Cyan
+                value: var(--color-cyan)
+            -
+                label: Blue
+                value: var(--color-blue)
+            -
+                label: Purple
+                value: var(--color-purple)
+            -
+                label: Pink
+                value: var(--color-pink)
     -
         id: bible-verse-top-offset
         title: Verse Number Vertical Position
@@ -126,6 +150,68 @@ settings:
         description: Display scripture references in all caps
         type: class-toggle
         default: false
+    -
+        id: scripture-list-highlight-background-color
+        title: Highlighted Row Background Color
+        description: Theme color used behind highlighted scriptureList rows
+        type: variable-select
+        default: var(--color-red)
+        options:
+            -
+                label: Red
+                value: var(--color-red)
+            -
+                label: Orange
+                value: var(--color-orange)
+            -
+                label: Yellow
+                value: var(--color-yellow)
+            -
+                label: Green
+                value: var(--color-green)
+            -
+                label: Cyan
+                value: var(--color-cyan)
+            -
+                label: Blue
+                value: var(--color-blue)
+            -
+                label: Purple
+                value: var(--color-purple)
+            -
+                label: Pink
+                value: var(--color-pink)
+    -
+        id: scripture-list-highlight-outline-color
+        title: Highlighted Row Outline Color
+        description: Theme color used for the highlighted scriptureList row accent bar
+        type: variable-select
+        default: var(--color-red)
+        options:
+            -
+                label: Red
+                value: var(--color-red)
+            -
+                label: Orange
+                value: var(--color-orange)
+            -
+                label: Yellow
+                value: var(--color-yellow)
+            -
+                label: Green
+                value: var(--color-green)
+            -
+                label: Cyan
+                value: var(--color-cyan)
+            -
+                label: Blue
+                value: var(--color-blue)
+            -
+                label: Purple
+                value: var(--color-purple)
+            -
+                label: Pink
+                value: var(--color-pink)
 
 */
 
@@ -133,7 +219,7 @@ settings:
 :root {
     --bible-gutter-width: 1.75em;
     --bible-verse-font-size: 0.5em;
-    --bible-verse-color: var(--text-faint);
+    --bible-verse-color: var(--color-red);
     --bible-verse-top-offset: 0.15em;
     --bible-heading-indent: 0.875em;
     --bible-chapter-heading-font: "Equity Caps A", serif;
@@ -142,6 +228,8 @@ settings:
     --scripture-list-reference-size: 1em;
     --scripture-list-text-font: inherit;
     --scripture-list-text-size: 1em;
+    --scripture-list-highlight-background-color: var(--color-red);
+    --scripture-list-highlight-outline-color: var(--color-red);
 }
 
 /* ‼️ HIDE THE VERSES SECTION */
@@ -430,10 +518,14 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 /* Scripture list highlighted row */
-.scripture-list-row--highlighted {
-    background-color: var(--background-modifier-hover);
+.scripture-list-row-highlighted {
+    background-color: color-mix(
+        in srgb,
+        var(--scripture-list-highlight-background-color) 14%,
+        transparent
+    );
 }
 
-.scripture-list-row--highlighted td:first-child {
-    box-shadow: inset 3px 0 0 var(--interactive-accent);
+.scripture-list-row-highlighted td:first-child {
+    box-shadow: inset 3px 0 0 var(--scripture-list-highlight-outline-color);
 }

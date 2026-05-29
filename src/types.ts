@@ -110,6 +110,7 @@ export interface ProcessedReference {
 	parsedReference: string;
 	translation: string;
 	highlighted?: boolean;
+	highlightMarker?: string;
 	verses?: BibleVerse[];
 	testament?: 'OLD' | 'NEW';
 	bookNumber?: number;

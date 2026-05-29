@@ -11,6 +11,7 @@ interface ParsedScriptureListEntry {
 	originalInput: string;
 	reference: string;
 	highlighted: boolean;
+	highlightMarker?: string;
 }
 
 export interface ScriptureListRenderContext {
@@ -111,13 +112,15 @@ export class ScriptureListRenderer {
 			.map(line => line.trim())
 			.filter(line => line.length > 0)
 			.map(line => {
-				const markerPattern = /^[-*]\s+/;
-				const highlighted = markerPattern.test(line);
-				const reference = highlighted ? line.replace(markerPattern, '').trim() : line;
+				const markerMatch = line.match(/^([-*]\s+)/);
+				const highlightMarker = markerMatch?.[1];
+				const highlighted = Boolean(highlightMarker);
+				const reference = highlightMarker ? line.slice(highlightMarker.length).trim() : line;
 				return {
 					originalInput: line,
 					reference,
-					highlighted
+					highlighted,
+					highlightMarker
 				};
 			});
 	}
@@ -142,6 +145,7 @@ export class ScriptureListRenderer {
 						parsedReference: reference,
 						translation: translationToUse,
 						highlighted: entry.highlighted,
+						highlightMarker: entry.highlightMarker,
 						error: `Translation "${translationToUse}" not found`
 					});
 					continue;
@@ -157,6 +161,7 @@ export class ScriptureListRenderer {
 						parsedReference: reference,
 						translation: translationToUse,
 						highlighted: entry.highlighted,
+						highlightMarker: entry.highlightMarker,
 						error: 'Invalid reference format'
 					});
 					continue;
@@ -173,6 +178,7 @@ export class ScriptureListRenderer {
 						parsedReference: reference,
 						translation: translationToUse,
 						highlighted: entry.highlighted,
+						highlightMarker: entry.highlightMarker,
 						error: 'Verses not found'
 					});
 					continue;
@@ -190,6 +196,7 @@ export class ScriptureListRenderer {
 						parsedReference: displayRef,
 						translation: translationToUse,
 						highlighted: entry.highlighted,
+						highlightMarker: entry.highlightMarker,
 						verses,
 					testament,
 					bookNumber,
@@ -203,6 +210,7 @@ export class ScriptureListRenderer {
 					parsedReference: entry.reference,
 					translation: this.defaultTranslation,
 					highlighted: entry.highlighted,
+					highlightMarker: entry.highlightMarker,
 					error: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
 				});
 			}
@@ -382,7 +390,10 @@ export class ScriptureListRenderer {
 		);
 		const explicitTranslation = this.parseReferenceAndTranslation(reference.originalInput).translation;
 
-		return explicitTranslation ? `${referenceText}, ${explicitTranslation}` : referenceText;
+		const normalizedReference = explicitTranslation ? `${referenceText}, ${explicitTranslation}` : referenceText;
+		const highlightMarker = reference.highlightMarker ?? (reference.highlighted ? '- ' : '');
+
+		return `${highlightMarker}${normalizedReference}`;
 	}
 
 	/**
@@ -604,7 +615,7 @@ export class ScriptureListRenderer {
 		for (const ref of references) {
 			const rowClasses = ['scripture-list-row'];
 			if (ref.highlighted) {
-				rowClasses.push('scripture-list-row--highlighted');
+				rowClasses.push('scripture-list-row-highlighted');
 			}
 
 			const row = tbody.createEl('tr', { cls: rowClasses.join(' ') });

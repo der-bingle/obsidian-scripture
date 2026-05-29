@@ -1,8 +1,13 @@
-import { Editor } from 'obsidian';
+import { Editor, EditorPosition } from 'obsidian';
 import { detectReferences } from 'scripture-references';
 import type { BibleVerse, ScriptureSettings } from './types';
 import type { ReferenceFormat } from './reference-format';
 import { formatReferenceDisplay } from './reference-format';
+
+export interface InsertionTarget {
+	from: EditorPosition;
+	to: EditorPosition;
+}
 
 export class CalloutFormatter {
 	private settings: ScriptureSettings;
@@ -11,40 +16,14 @@ export class CalloutFormatter {
 		this.settings = settings;
 	}
 
-	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): void {
+	insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat, insertionTarget?: InsertionTarget): void {
 		const callout = this.formatCallout(reference, verses, translation, includeVerseNumbers, referenceFormat);
-		const selection = editor.getSelection();
-
-		if (selection.trim()) {
-			// Replace selected text with the callout
-			editor.replaceSelection(callout);
-		} else {
-			// No selection—insert at cursor position (original behavior)
-			const cursor = editor.getCursor();
-			editor.replaceRange(callout, cursor);
-
-			// Move cursor to after the callout
-			const lines = callout.split('\n');
-			const endPos = {
-				line: cursor.line + lines.length - 1,
-				ch: 0
-			};
-			editor.setCursor(endPos);
-		}
+		this.insertText(editor, callout, insertionTarget);
 	}
 
-	insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers: boolean): void {
+	insertPlainText(editor: Editor, verses: BibleVerse[], includeVerseNumbers: boolean, insertionTarget?: InsertionTarget): void {
 		const plainText = this.formatPlainText(verses, includeVerseNumbers);
-		const selection = editor.getSelection();
-
-		if (selection.trim()) {
-			// Replace selected text with the plain text
-			editor.replaceSelection(plainText);
-		} else {
-			// No selection—insert at cursor position
-			const cursor = editor.getCursor();
-			editor.replaceRange(plainText, cursor);
-		}
+		this.insertText(editor, plainText, insertionTarget);
 	}
 
 	private formatPlainText(verses: BibleVerse[], includeVerseNumbers: boolean): string {
@@ -213,18 +192,9 @@ export class CalloutFormatter {
 			.join('\n');
 	}
 
-	insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): void {
+	insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat, insertionTarget?: InsertionTarget): void {
 		const link = this.formatScriptureLink(reference, verses, translation, referenceFormat);
-		const selection = editor.getSelection();
-
-		if (selection.trim()) {
-			// Replace selected text with the link
-			editor.replaceSelection(link);
-		} else {
-			// No selection—insert at cursor position
-			const cursor = editor.getCursor();
-			editor.replaceRange(link, cursor);
-		}
+		this.insertText(editor, link, insertionTarget);
 	}
 
 	private formatScriptureLink(reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
@@ -244,6 +214,50 @@ export class CalloutFormatter {
 			console.error('Failed to detect reference type:', error);
 			return false;
 		}
+	}
+
+	private insertText(editor: Editor, text: string, insertionTarget?: InsertionTarget): void {
+		const target = insertionTarget || this.getCurrentInsertionTarget(editor);
+		editor.replaceRange(text, target.from, target.to);
+
+		const endPos = this.getEndPosition(target.from, text);
+		editor.setCursor(endPos);
+		editor.scrollIntoView({
+			from: endPos,
+			to: endPos
+		});
+		editor.focus();
+	}
+
+	private getCurrentInsertionTarget(editor: Editor): InsertionTarget {
+		const selection = editor.getSelection();
+		if (selection.trim()) {
+			return {
+				from: editor.getCursor('from'),
+				to: editor.getCursor('to')
+			};
+		}
+
+		const cursor = editor.getCursor();
+		return {
+			from: cursor,
+			to: cursor
+		};
+	}
+
+	private getEndPosition(start: EditorPosition, insertedText: string): EditorPosition {
+		const lines = insertedText.split('\n');
+		if (lines.length === 1) {
+			return {
+				line: start.line,
+				ch: start.ch + lines[0].length
+			};
+		}
+
+		return {
+			line: start.line + lines.length - 1,
+			ch: lines[lines.length - 1].length
+		};
 	}
 
 	updateSettings(settings: ScriptureSettings): void {
