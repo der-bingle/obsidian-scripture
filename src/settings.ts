@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, ButtonComponent, ToggleComponent } from 'obsidian';
-import type { ScriptureSettings, BibleTranslation } from './types';
+import type { ScriptureSettings, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
 export class ScriptureSettingTab extends PluginSettingTab {
@@ -16,15 +16,23 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Scripture Settings' });
+		this.displayHeading(containerEl, 'Scripture Settings');
 
 		this.displayTranslationsSection(containerEl);
-		this.displayGeneralSettings(containerEl);
-		this.displayBibleNotesSettings(containerEl);
+		this.displayInsertDefaults(containerEl);
+		this.displayCalloutSettings(containerEl);
+		this.displayScriptureListSettings(containerEl);
+		this.displayScriptureNotesSettings(containerEl);
+	}
+
+	private displayHeading(containerEl: HTMLElement, name: string): void {
+		new Setting(containerEl)
+			.setName(name)
+			.setHeading();
 	}
 
 	private displayTranslationsSection(containerEl: HTMLElement): void {
-		containerEl.createEl('h3', { text: 'Bible Translations' });
+		this.displayHeading(containerEl, 'Translations');
 
 		// Translations list
 		const translationsContainer = containerEl.createDiv('bible-translations-list');
@@ -33,7 +41,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Add translation button
 		new Setting(containerEl)
 			.setName('Add Translation')
-			.setDesc('Add a new Bible translation')
+			.setDesc('Add a new translation')
 			.addButton(button => button
 				.setButtonText('Add Translation')
 				.setCta()
@@ -58,6 +66,16 @@ export class ScriptureSettingTab extends PluginSettingTab {
 						this.display(); // Refresh the display
 						new Notice(`Added translation: ${translation.name}`);
 					}).open();
+				}));
+
+		// Validate all translations button
+		new Setting(containerEl)
+			.setName('Validate Translations')
+			.setDesc('Check all configured translations for errors')
+			.addButton(button => button
+				.setButtonText('Validate All')
+				.onClick(async () => {
+					await this.validateAllTranslations();
 				}));
 	}
 
@@ -132,13 +150,13 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		});
 	}
 
-	private displayGeneralSettings(containerEl: HTMLElement): void {
-		containerEl.createEl('h3', { text: 'Reference Insertion Settings' });
+	private displayInsertDefaults(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Insert Defaults');
 
 		// Default translation
 		new Setting(containerEl)
 			.setName('Default Translation')
-			.setDesc('The translation to use by default in the modal')
+			.setDesc('Translation to use by default in Scripture insert modals')
 			.addDropdown(dropdown => {
 				if (this.plugin.settings.translations.length === 0) {
 					dropdown.addOption('', 'No translations configured');
@@ -156,10 +174,65 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					});
 			});
 
+		new Setting(containerEl)
+			.setName('Default Insert Scripture Format')
+			.setDesc('How Insert Scripture opens by default')
+			.addDropdown(dropdown => dropdown
+				.addOption('scripture-callout', 'Scripture callout')
+				.addOption('plain-text', 'Plain text')
+				.setValue(this.plugin.settings.insertScriptureFormat)
+				.onChange(async (value: InsertScriptureFormat) => {
+					this.plugin.settings.insertScriptureFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Callout Reference Format')
+			.setDesc('Default reference format for Insert Scripture callout titles')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+				.setValue(this.plugin.settings.calloutReferenceFormat)
+				.onChange(async (value: ReferenceFormat) => {
+					this.plugin.settings.calloutReferenceFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Link Reference Format')
+			.setDesc('Default reference format for Insert Scripture Link')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+				.setValue(this.plugin.settings.linkReferenceFormat)
+				.onChange(async (value: ReferenceFormat) => {
+					this.plugin.settings.linkReferenceFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Include verse numbers on insert (default for modal)
+		new Setting(containerEl)
+			.setName('Include verse numbers when inserting')
+			.setDesc('Default for Insert Scripture when inserting multiple verses')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.includeVerseNumbersOnInsert)
+				.onChange(async (value) => {
+					this.plugin.settings.includeVerseNumbersOnInsert = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	private displayCalloutSettings(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Scripture Callouts');
+
 		// Verse numbers setting
 		new Setting(containerEl)
 			.setName('Verse Numbers')
-			.setDesc('How to handle verse numbers in scripture callouts')
+			.setDesc('How to handle verse numbers in Scripture callouts')
 			.addDropdown(dropdown => dropdown
 				.addOption('exclude', 'Don\'t include verse numbers')
 				.addOption('include', 'Include verse numbers')
@@ -173,7 +246,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Translation display setting
 		new Setting(containerEl)
 			.setName('Translation Display')
-			.setDesc('When to show the translation name in scripture callouts')
+			.setDesc('When to show the translation name in Scripture references')
 			.addDropdown(dropdown => dropdown
 				.addOption('never', 'Not included')
 				.addOption('always', 'Included')
@@ -184,75 +257,10 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName('Reference Format')
-			.setDesc('Default format for inserted scripture references')
-			.addDropdown(dropdown => dropdown
-				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
-				.addOption('english-abbrev', 'English abbreviations from scripture-references')
-				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
-				.setValue(this.plugin.settings.referenceFormat)
-				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
-					this.plugin.settings.referenceFormat = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Scripture List Reference Format')
-			.setDesc('Format for the reference column in scriptureList codeblock rendering')
-			.addDropdown(dropdown => dropdown
-				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
-				.addOption('english-abbrev', 'English abbreviations from scripture-references')
-				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
-				.setValue(this.plugin.settings.scriptureListReferenceFormat)
-				.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
-					this.plugin.settings.scriptureListReferenceFormat = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Reformat Scripture List Source')
-			.setDesc('Automatically normalize references inside scriptureList codeblock source')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.scriptureListReformatSource)
-				.onChange(async (value) => {
-					this.plugin.settings.scriptureListReformatSource = value;
-					await this.plugin.saveSettings();
-					this.display();
-				}));
-
-		if (this.plugin.settings.scriptureListReformatSource) {
-			new Setting(containerEl)
-				.setName('Scripture List Source Reference Format')
-				.setDesc('Format used when normalizing references inside scriptureList codeblock source')
-				.addDropdown(dropdown => dropdown
-					.addOption('full-name', 'Full book name (James 1:16–18)')
-					.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
-					.addOption('english-abbrev', 'English abbreviations from scripture-references')
-					.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
-					.setValue(this.plugin.settings.scriptureListSourceReferenceFormat)
-					.onChange(async (value: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse') => {
-						this.plugin.settings.scriptureListSourceReferenceFormat = value;
-						await this.plugin.saveSettings();
-					}));
-
-			new Setting(containerEl)
-				.setName('Reorder Scripture List Source')
-				.setDesc('Automatically reorder scriptureList source lines by book order, with a blank line between testaments')
-				.addToggle(toggle => toggle
-					.setValue(this.plugin.settings.scriptureListReorderSourceByBook)
-					.onChange(async (value) => {
-						this.plugin.settings.scriptureListReorderSourceByBook = value;
-						await this.plugin.saveSettings();
-					}));
-		}
-
 		// Linking strategy setting
 		new Setting(containerEl)
 			.setName('Linking Strategy')
-			.setDesc('Which translation to link to in scripture callout titles')
+			.setDesc('Which translation to link to in Scripture callout titles')
 			.addDropdown(dropdown => dropdown
 				.addOption('default-translation', 'Always link to default translation')
 				.addOption('verse-translation', 'Link to verse translation')
@@ -265,7 +273,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Callout folding setting
 		new Setting(containerEl)
 			.setName('Callout Folding')
-			.setDesc('Whether scripture callouts should be foldable')
+			.setDesc('Whether Scripture callouts should be foldable')
 			.addDropdown(dropdown => dropdown
 				.addOption('not-foldable', 'Not foldable')
 				.addOption('foldable-expanded', 'Foldable, expanded by default')
@@ -279,54 +287,88 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Hidden links setting
 		new Setting(containerEl)
 			.setName('Include hidden links to all verses in ranges')
-			.setDesc('Add individual verse links at the end of multi-verse callouts')
+			.setDesc('Add individual verse links at the end of multi-verse Scripture callouts')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.includeHiddenLinks)
 				.onChange(async (value) => {
 					this.plugin.settings.includeHiddenLinks = value;
 					await this.plugin.saveSettings();
 				}));
+	}
 
-		// Include verse numbers on insert (default for modal)
+	private displayScriptureListSettings(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Scripture Lists');
+
 		new Setting(containerEl)
-			.setName('Include verse numbers when inserting')
-			.setDesc('Default for the insert modal: include verse numbers in multi-verse callouts')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.includeVerseNumbersOnInsert)
-				.onChange(async (value) => {
-					this.plugin.settings.includeVerseNumbersOnInsert = value;
+			.setName('Scripture List Reference Format')
+			.setDesc('Format for the reference column in Scripture list rendering')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+				.setValue(this.plugin.settings.scriptureListReferenceFormat)
+				.onChange(async (value: ReferenceFormat) => {
+					this.plugin.settings.scriptureListReferenceFormat = value;
 					await this.plugin.saveSettings();
 				}));
 
-		// Validate all translations button
 		new Setting(containerEl)
-			.setName('Validate Translations')
-			.setDesc('Check all configured translations for errors')
-			.addButton(button => button
-				.setButtonText('Validate All')
-				.onClick(async () => {
-					await this.validateAllTranslations();
+			.setName('Reformat Scripture List Source')
+			.setDesc('Automatically normalize references inside Scripture list source')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.scriptureListReformatSource)
+				.onChange(async (value) => {
+					this.plugin.settings.scriptureListReformatSource = value;
+					await this.plugin.saveSettings();
+					this.display();
 				}));
+
+		if (this.plugin.settings.scriptureListReformatSource) {
+			new Setting(containerEl)
+				.setName('Scripture List Source Reference Format')
+				.setDesc('Format used when normalizing references inside Scripture list source')
+				.addDropdown(dropdown => dropdown
+					.addOption('full-name', 'Full book name (James 1:16–18)')
+					.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+					.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
+					.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+					.setValue(this.plugin.settings.scriptureListSourceReferenceFormat)
+					.onChange(async (value: ReferenceFormat) => {
+						this.plugin.settings.scriptureListSourceReferenceFormat = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Reorder Scripture List Source')
+				.setDesc('Automatically reorder Scripture list source lines by book order, with a blank line between testaments')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.scriptureListReorderSourceByBook)
+					.onChange(async (value) => {
+						this.plugin.settings.scriptureListReorderSourceByBook = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 	}
 
-	private displayBibleNotesSettings(containerEl: HTMLElement): void {
-		containerEl.createEl('h3', { text: 'Bible Notes Display' });
+	private displayScriptureNotesSettings(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Scripture Notes');
 		containerEl.createEl('p', { 
-			text: 'These settings apply to Bible chapter notes in your vault, not to inserted scripture callouts.',
+			text: 'These settings apply to Scripture chapter notes in your vault, not to inserted Scripture.',
 			cls: 'setting-item-description'
 		});
 
 		// Verse number visibility setting
 		new Setting(containerEl)
 			.setName('Show Verse Numbers')
-			.setDesc('Whether verse numbers are displayed in Bible chapter notes')
+			.setDesc('Whether verse numbers are displayed in Scripture notes')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.verseNumbersVisible)
 				.onChange(async (value: boolean) => {
 					this.plugin.settings.verseNumbersVisible = value;
 					await this.plugin.saveSettings();
 					
-					// Apply the new setting to currently open Bible notes
+					// Apply the new setting to currently open Scripture notes
 					if (this.plugin.verseDisplayManager) {
 						this.plugin.verseDisplayManager.applyVerseDisplayToOpenFiles();
 					}
@@ -335,7 +377,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Verse number display mode setting
 		new Setting(containerEl)
 			.setName('Verse Number Display Mode')
-			.setDesc('How verse numbers are displayed when visible')
+			.setDesc('How verse numbers are displayed in Scripture notes when visible')
 			.addDropdown(dropdown => dropdown
 				.addOption('first', 'Show first verse number only')
 				.addOption('all', 'Show all verse numbers')
@@ -344,15 +386,15 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					this.plugin.settings.verseNumberDisplayMode = value;
 					await this.plugin.saveSettings();
 					
-					// Apply the new setting to currently open Bible notes
+					// Apply the new setting to currently open Scripture notes
 					if (this.plugin.verseDisplayManager) {
 						this.plugin.verseDisplayManager.applyVerseDisplayToOpenFiles();
 					}
 				}));
 
 		new Setting(containerEl)
-			.setName('Bible Note Tab Titles')
-			.setDesc('When to append the translation to open Bible note tab titles')
+			.setName('Scripture Note Tab Titles')
+			.setDesc('When to append the translation to open Scripture note tab titles')
 			.addDropdown(dropdown => dropdown
 				.addOption('never', 'Never append translation')
 				.addOption('duplicates-only', 'Only when duplicate chapters are open')
@@ -438,7 +480,7 @@ class TranslationModal extends Modal {
 		// File path
 		new Setting(contentEl)
 			.setName('File Path')
-			.setDesc('Path to the Bible JSON file (relative to vault root)')
+			.setDesc('Path to the translation JSON file (relative to vault root)')
 			.addText(text => {
 				this.pathInput = text;
 				text
@@ -449,8 +491,8 @@ class TranslationModal extends Modal {
 
 		// Available as notes toggle
 		new Setting(contentEl)
-			.setName('Available as notes in the vault')
-			.setDesc('Check if this translation has Bible chapter notes in your vault')
+			.setName('Available as Scripture notes in the vault')
+			.setDesc('Check if this translation has Scripture chapter notes in your vault')
 			.addToggle(toggle => {
 				this.availableAsNotesToggle = toggle;
 				toggle
@@ -463,8 +505,8 @@ class TranslationModal extends Modal {
 
 		// Notes directory (initially hidden if not available as notes)
 		this.notesDirectorySetting = new Setting(contentEl)
-			.setName('Notes Directory')
-			.setDesc('Path to the directory containing Bible chapter notes (relative to vault root)')
+			.setName('Scripture Notes Directory')
+			.setDesc('Path to the directory containing Scripture chapter notes (relative to vault root)')
 			.addText(text => {
 				this.notesDirectoryInput = text;
 				text

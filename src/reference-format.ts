@@ -1,7 +1,6 @@
 import { book_abbrev_english } from 'scripture-references';
-import type { BibleVerse, ScriptureSettings } from './types';
+import type { BibleVerse, ReferenceFormat, ScriptureSettings } from './types';
 
-export type ReferenceFormat = ScriptureSettings['referenceFormat'];
 interface ReferenceDisplayOptions {
 	isChapterReference?: boolean;
 }

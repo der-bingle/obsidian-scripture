@@ -21,6 +21,7 @@ export class BibleNoteTitleManager {
 	private originalTitles = new WeakMap<WorkspaceLeaf, ManagedLeafTitle>();
 	private managedLeaves = new Set<WorkspaceLeaf>();
 	private refreshTimer: number | null = null;
+	private followUpRefreshTimers = new Set<number>();
 
 	constructor(app: App, settings: ScriptureSettings) {
 		this.app = app;
@@ -41,6 +42,19 @@ export class BibleNoteTitleManager {
 			this.refreshTimer = null;
 			this.refreshOpenNoteTitles();
 		}, delay);
+	}
+
+	scheduleRefreshSequence(delays = [100, 500, 1000]): void {
+		this.clearFollowUpRefreshes();
+
+		delays.forEach(delay => {
+			const timer = window.setTimeout(() => {
+				this.followUpRefreshTimers.delete(timer);
+				this.refreshOpenNoteTitles();
+			}, delay);
+
+			this.followUpRefreshTimers.add(timer);
+		});
 	}
 
 	refreshOpenNoteTitles(): void {
@@ -72,6 +86,8 @@ export class BibleNoteTitleManager {
 			window.clearTimeout(this.refreshTimer);
 			this.refreshTimer = null;
 		}
+
+		this.clearFollowUpRefreshes();
 
 		Array.from(this.managedLeaves).forEach(leaf => this.restoreLeafTitle(leaf));
 	}
@@ -141,6 +157,7 @@ export class BibleNoteTitleManager {
 		(leaf as WorkspaceLeaf & { getDisplayText: () => string }).getDisplayText = () => title;
 		(this.getLeafView(leaf) as View & { getDisplayText: () => string }).getDisplayText = () => title;
 		this.managedLeaves.add(leaf);
+		this.refreshLeafHeader(leaf);
 	}
 
 	private restoreLeafTitle(leaf: WorkspaceLeaf): void {
@@ -153,6 +170,7 @@ export class BibleNoteTitleManager {
 		}
 		this.originalTitles.delete(leaf);
 		this.managedLeaves.delete(leaf);
+		this.refreshLeafHeader(leaf);
 	}
 
 	private getOriginalTitles(leaf: WorkspaceLeaf): ManagedLeafTitle {
@@ -178,5 +196,14 @@ export class BibleNoteTitleManager {
 
 	private getLeafView(leaf: WorkspaceLeaf): View {
 		return leaf.view;
+	}
+
+	private refreshLeafHeader(leaf: WorkspaceLeaf): void {
+		(leaf as WorkspaceLeaf & { updateHeader?: () => void }).updateHeader?.();
+	}
+
+	private clearFollowUpRefreshes(): void {
+		this.followUpRefreshTimers.forEach(timer => window.clearTimeout(timer));
+		this.followUpRefreshTimers.clear();
 	}
 }

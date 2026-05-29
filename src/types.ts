@@ -53,16 +53,21 @@ export interface BibleTranslation {
 	errorMessage?: string;
 }
 
+export type ReferenceFormat = 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+export type InsertScriptureFormat = 'scripture-callout' | 'plain-text';
+
 // Plugin settings interface
 export interface ScriptureSettings {
 	translations: BibleTranslation[];
 	defaultTranslation: string;
+	insertScriptureFormat: InsertScriptureFormat;
 	verseNumbers: 'include' | 'exclude' | 'exclude-first';
 	translationDisplay: 'never' | 'always' | 'except-default';
-	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
-	scriptureListReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	calloutReferenceFormat: ReferenceFormat;
+	linkReferenceFormat: ReferenceFormat;
+	scriptureListReferenceFormat: ReferenceFormat;
 	scriptureListReformatSource: boolean;
-	scriptureListSourceReferenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
+	scriptureListSourceReferenceFormat: ReferenceFormat;
 	scriptureListReorderSourceByBook: boolean;
 	linkingStrategy: 'default-translation' | 'verse-translation';
 	includeHiddenLinks: boolean;
@@ -78,9 +83,11 @@ export interface ScriptureSettings {
 export const DEFAULT_SETTINGS: ScriptureSettings = {
 	translations: [],
 	defaultTranslation: '',
+	insertScriptureFormat: 'scripture-callout',
 	verseNumbers: 'exclude',
 	translationDisplay: 'except-default',
-	referenceFormat: 'full-name',
+	calloutReferenceFormat: 'full-name',
+	linkReferenceFormat: 'standard-abbrev',
 	scriptureListReferenceFormat: 'full-name',
 	scriptureListReformatSource: false,
 	scriptureListSourceReferenceFormat: 'standard-abbrev',
@@ -100,8 +107,8 @@ export type OnSubmitCallback = (
 	verses: BibleVerse[],
 	translation: string,
 	includeVerseNumbers: boolean,
-	insertAsPlainText: boolean,
-	referenceFormat: 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse'
+	insertScriptureFormat: InsertScriptureFormat,
+	referenceFormat: ReferenceFormat
 ) => void;
 
 // Scripture list renderer interface

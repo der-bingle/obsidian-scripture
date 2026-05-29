@@ -1,7 +1,6 @@
 import { Editor, EditorPosition } from 'obsidian';
 import { detectReferences } from 'scripture-references';
-import type { BibleVerse, ScriptureSettings } from './types';
-import type { ReferenceFormat } from './reference-format';
+import type { BibleVerse, ReferenceFormat, ScriptureSettings } from './types';
 import { formatReferenceDisplay } from './reference-format';
 
 export interface InsertionTarget {
@@ -50,7 +49,7 @@ export class CalloutFormatter {
 
 	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): string {
 		// Create properly formatted reference with full book name
-		const formattedReference = this.formatProperReference(reference, verses, translation, referenceFormat);
+		const formattedReference = this.formatProperReference(reference, verses, translation, referenceFormat || this.settings.calloutReferenceFormat);
 		const foldingIndicator = this.getFoldingIndicator();
 		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
@@ -110,7 +109,7 @@ export class CalloutFormatter {
 		return `> ${hiddenLinks.join(' ')}`;
 	}
 
-	private formatProperReference(reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
+	private formatProperReference(reference: string, verses: BibleVerse[], translation: string, referenceFormat: ReferenceFormat): string {
 		if (verses.length === 0) {
 			return '';
 		}
@@ -122,7 +121,7 @@ export class CalloutFormatter {
 			translation,
 			this.settings.defaultTranslation,
 			this.settings.translationDisplay,
-			referenceFormat || this.settings.referenceFormat,
+			referenceFormat,
 			{ isChapterReference }
 		);
 		
@@ -199,7 +198,7 @@ export class CalloutFormatter {
 
 	private formatScriptureLink(reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat): string {
 		// Use the same logic as formatProperReference to create the link
-		return this.formatProperReference(reference, verses, translation, referenceFormat);
+		return this.formatProperReference(reference, verses, translation, referenceFormat || this.settings.linkReferenceFormat);
 	}
 
 	private isChapterReference(reference: string): boolean {
