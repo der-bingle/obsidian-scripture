@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-scripture",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
 	"main": "main.js",
 	"scripts": {
