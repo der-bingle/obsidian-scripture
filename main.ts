@@ -195,6 +195,38 @@ export default class Scripture extends Plugin {
 			}
 		});
 
+		// Add command to open scripture note from clipboard
+		this.addCommand({
+			id: 'open-scripture-from-clipboard',
+			name: 'Open Scripture from Clipboard',
+			icon: 'clipboard-paste',
+			callback: async () => {
+				const noteTranslations = this.getNoteEnabledTranslations();
+				if (noteTranslations.length === 0) {
+					new Notice('No translations configured with scripture notes. Enable "Available as Notes" in settings.');
+					return;
+				}
+
+				let clipboardText: string;
+				try {
+					clipboardText = await navigator.clipboard.readText();
+				} catch {
+					new Notice('Unable to read clipboard');
+					return;
+				}
+
+				if (!clipboardText.trim()) {
+					new Notice('Clipboard is empty');
+					return;
+				}
+
+				const success = await this.openScriptureNote(clipboardText.trim());
+				if (!success) {
+					new Notice('No valid scripture reference found in clipboard');
+				}
+			}
+		});
+
 		// Add command to toggle verse number visibility
 		this.addCommand({
 			id: 'toggle-verse-numbers',

@@ -502,9 +502,10 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 /* ‼️ SCRIPTURE LIST TABLE TYPOGRAPHY */
-.scripture-list-table td:first-child {
+.scripture-list-wrapper .scripture-list-table td:first-child {
     font-family: var(--scripture-list-reference-font);
     font-size: var(--scripture-list-reference-size);
+    text-transform: none;
 }
 
 .scripture-list-table td:nth-child(2) {
@@ -513,7 +514,7 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 /* Uppercase references option */
-.scripture-list-reference-uppercase .scripture-list-table td:first-child {
+.scripture-list-reference-uppercase .scripture-list-wrapper .scripture-list-table td:first-child {
     text-transform: uppercase;
 }
 
