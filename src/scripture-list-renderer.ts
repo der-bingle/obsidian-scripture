@@ -39,6 +39,12 @@ interface SourceLineReference {
 	processedReference?: ProcessedReference;
 }
 
+interface ScriptureReferenceMatch {
+	text: string;
+	index?: number;
+	ref: PassageReference;
+}
+
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const parseReferenceAndTranslationFromTranslations = (
@@ -899,41 +905,148 @@ export class ScriptureListRenderer {
 			return;
 		}
 
-		const reference = this.extractFirstScriptureListReference(clipboardText);
-		if (!reference) {
+		const references = this.extractFirstScriptureListReferences(clipboardText);
+		if (references.length === 0) {
 			new Notice('No scripture reference found in clipboard');
 			return;
 		}
 
-		const [processedReference] = await this.parseAndLookupReferences([{
+		const processedReferences = await this.parseAndLookupReferences(references.map(reference => ({
 			originalInput: reference,
 			reference,
 			highlighted: false
-		}]);
+		})));
 
-		if (!processedReference || processedReference.error || !processedReference.verses || processedReference.verses.length === 0) {
-			new Notice(processedReference?.error || 'Unable to validate scripture reference');
+		const invalidReference = processedReferences.find(reference =>
+			reference.error || !reference.verses || reference.verses.length === 0
+		);
+		if (invalidReference) {
+			new Notice(invalidReference.error || 'Unable to validate scripture reference');
 			return;
 		}
 
-		await this.appendLineToCodeBlockSource(renderContext, this.formatSourceReference(processedReference));
+		await this.appendLinesToCodeBlockSource(
+			renderContext,
+			processedReferences.map(reference => this.formatSourceReference(reference))
+		);
 	}
 
-	private extractFirstScriptureListReference(text: string): string | null {
-		const match = Array.from(detectReferences(text))[0] as any;
-		if (!match?.text) {
-			return null;
+	private extractFirstScriptureListReferences(text: string): string[] {
+		const matches = (Array.from(detectReferences(text)) as any[])
+			.filter((match: any): match is ScriptureReferenceMatch => Boolean(match?.text && match?.ref));
+		const firstMatch = matches[0];
+		if (!firstMatch) {
+			return [];
 		}
 
-		const referenceText = String(match.text).trim();
-		const suffixStart = typeof match.index === 'number'
-			? match.index + String(match.text).length
-			: text.indexOf(String(match.text)) + String(match.text).length;
-		const suffix = suffixStart >= 0
+		const referenceGroup = this.extractLeadingCommaSeparatedReferenceGroup(text, matches);
+		const lastMatch = referenceGroup[referenceGroup.length - 1];
+		const suffixStart = this.getMatchEndIndex(text, lastMatch);
+		const suffix = suffixStart !== null
 			? this.extractTrailingTranslationSuffix(text.slice(suffixStart))
 			: null;
+		const references = this.expandCommaSeparatedReferenceGroup(referenceGroup);
 
-		return suffix ? `${referenceText}, ${suffix}` : referenceText;
+		return suffix
+			? references.map(reference => `${reference}, ${suffix}`)
+			: references;
+	}
+
+	private extractLeadingCommaSeparatedReferenceGroup(
+		text: string,
+		matches: ScriptureReferenceMatch[]
+	): ScriptureReferenceMatch[] {
+		const group = [matches[0]];
+
+		for (const match of matches.slice(1)) {
+			const previousMatch = group[group.length - 1];
+			const previousEnd = this.getMatchEndIndex(text, previousMatch);
+			const nextStart = this.getMatchStartIndex(text, match);
+			if (previousEnd === null || nextStart === null) {
+				break;
+			}
+
+			const separator = text.slice(previousEnd, nextStart);
+			if (!/^\s*,\s*$/.test(separator)) {
+				break;
+			}
+
+			group.push(match);
+		}
+
+		return group;
+	}
+
+	private expandCommaSeparatedReferenceGroup(matches: ScriptureReferenceMatch[]): string[] {
+		const references: string[] = [];
+		let currentRangeStart: ScriptureReferenceMatch | null = null;
+		let currentRangeEnd: ScriptureReferenceMatch | null = null;
+
+		const pushCurrentRange = () => {
+			if (!currentRangeStart || !currentRangeEnd) {
+				return;
+			}
+
+			references.push(this.formatReferenceRange(currentRangeStart.ref, currentRangeEnd.ref));
+			currentRangeStart = null;
+			currentRangeEnd = null;
+		};
+
+		for (const match of matches) {
+			if (!currentRangeStart || !currentRangeEnd) {
+				currentRangeStart = match;
+				currentRangeEnd = match;
+				continue;
+			}
+
+			if (this.areSequentialVerses(currentRangeEnd.ref, match.ref)) {
+				currentRangeEnd = match;
+				continue;
+			}
+
+			pushCurrentRange();
+			currentRangeStart = match;
+			currentRangeEnd = match;
+		}
+
+		pushCurrentRange();
+		return references;
+	}
+
+	private areSequentialVerses(previous: PassageReference, current: PassageReference): boolean {
+		return (
+			previous.book === current.book &&
+			previous.start_chapter === current.start_chapter &&
+			(previous.end_chapter || previous.start_chapter) === current.start_chapter &&
+			(previous.end_verse || previous.start_verse) + 1 === current.start_verse
+		);
+	}
+
+	private formatReferenceRange(start: PassageReference, end: PassageReference): string {
+		const startReference = String(start);
+		if (start === end) {
+			return startReference;
+		}
+
+		if (start.book === end.book && start.start_chapter === end.start_chapter) {
+			return `${start.getBookName()} ${start.start_chapter}:${start.start_verse}-${end.end_verse || end.start_verse}`;
+		}
+
+		return `${startReference}-${String(end)}`;
+	}
+
+	private getMatchStartIndex(text: string, match: ScriptureReferenceMatch): number | null {
+		if (typeof match.index === 'number') {
+			return match.index;
+		}
+
+		const index = text.indexOf(String(match.text));
+		return index >= 0 ? index : null;
+	}
+
+	private getMatchEndIndex(text: string, match: ScriptureReferenceMatch): number | null {
+		const start = this.getMatchStartIndex(text, match);
+		return start === null ? null : start + String(match.text).length;
 	}
 
 	private extractTrailingTranslationSuffix(text: string): string | null {
@@ -993,6 +1106,10 @@ export class ScriptureListRenderer {
 	}
 
 	private async appendLineToCodeBlockSource(renderContext: ScriptureListRenderContext, line: string): Promise<void> {
+		await this.appendLinesToCodeBlockSource(renderContext, [line]);
+	}
+
+	private async appendLinesToCodeBlockSource(renderContext: ScriptureListRenderContext, linesToAppend: string[]): Promise<void> {
 		const sectionInfo = renderContext.getSectionInfo();
 		if (!sectionInfo) {
 			new Notice('Unable to locate scripture list');
@@ -1015,7 +1132,7 @@ export class ScriptureListRenderer {
 					return content;
 				}
 
-				lines.splice(codeBlockRange.lineEnd, 0, line);
+				lines.splice(codeBlockRange.lineEnd, 0, ...linesToAppend);
 				didAppend = true;
 				return lines.join('\n');
 			});
@@ -1026,7 +1143,10 @@ export class ScriptureListRenderer {
 		}
 
 		if (didAppend) {
-			new Notice(`Added ${line} to scripture list`);
+			new Notice(linesToAppend.length === 1
+				? `Added ${linesToAppend[0]} to scripture list`
+				: `Added ${linesToAppend.length} references to scripture list`
+			);
 		} else {
 			new Notice('Unable to locate scripture list');
 		}

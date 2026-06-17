@@ -252,7 +252,9 @@ export class ScriptureModal extends Modal {
 		// Enter key submits
 		this.inputEl.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
-				this.handleSubmit();
+				e.preventDefault();
+				e.stopPropagation();
+				void this.handleSubmit();
 			}
 		});
 	}
