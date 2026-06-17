@@ -304,7 +304,7 @@ body:not(.bible-text-justify) .bible .cm-line {
     position: absolute;
     left: 0;
     top: var(--bible-verse-top-offset);
-    width: 2em;
+    width: var(--bible-gutter-width);
     text-align: right;
     padding-right: 0.4em;
 }
@@ -315,7 +315,7 @@ body:not(.bible-text-justify) .bible .cm-line {
     position: absolute;
     left: 0;
     top: var(--bible-verse-top-offset);
-    width: 2em;
+    width: var(--bible-gutter-width);
     text-align: right;
     padding-right: 0.4em;
 }
@@ -342,7 +342,7 @@ body:not(.bible-text-justify) .bible .cm-line {
     position: absolute;
     left: 0;
     top: var(--bible-verse-top-offset);
-    width: 2em;
+    width: var(--bible-gutter-width);
     text-align: right;
     padding-right: 0.4em;
 }
@@ -351,7 +351,7 @@ body:not(.bible-text-justify) .bible .cm-line {
 .bible-numbers-all p sup {
     position: absolute;
     left: 0;
-    width: 2em;
+    width: var(--bible-gutter-width);
     text-align: right;
     padding-right: 0.4em;
     font-size: var(--bible-verse-font-size);
@@ -362,7 +362,7 @@ body:not(.bible-text-justify) .bible .cm-line {
 .callout[data-callout="scripture"] sup {
     position: absolute;
     left: 0;
-    width: 2em;
+    width: var(--bible-gutter-width);
     text-align: right;
     padding-right: 0.4em;
     font-size: var(--bible-verse-font-size);
@@ -370,7 +370,7 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 /* In callouts for prose, keep subsequent verse numbers inline like the reading mode rules */
-.callout[data-callout="scripture"]:not(.bible-poetry) sup:not(:first-of-type) {
+.callout[data-callout="scripture"] sup:not(:first-of-type) {
     position: static;
     width: auto;
     text-align: inherit;
@@ -378,13 +378,23 @@ body:not(.bible-text-justify) .bible .cm-line {
     margin: 0 0.2em;
 }
 
-/* For prose (non-poetry), keep subsequent verse numbers inline after first */
-.bible-numbers-all:not(.bible-poetry) p sup:not(:first-of-type) {
+/* For prose, keep subsequent verse numbers inline after first */
+.bible-numbers-all p:not(:has(br)) sup:not(:first-of-type) {
     position: static;
     width: auto;
     text-align: inherit;
     padding-right: 0;
     margin: 0 0.2em;
+}
+
+/* Hard line breaks usually indicate poetry; keep all verse numbers in the margin */
+.bible-numbers-all p:has(br) sup {
+    position: absolute;
+    left: 0;
+    width: var(--bible-gutter-width);
+    text-align: right;
+    padding-right: 0.4em;
+    margin: 0;
 }
 
 /* subsequent verse numbers in bible-numbers-all stay inline with smaller styling - Live Preview */
@@ -392,26 +402,6 @@ body:not(.bible-text-justify) .bible .cm-line {
     font-size: var(--bible-verse-font-size);
     color: var(--bible-verse-color);
     margin: 0 0.2em;
-}
-
-/* In poetry, only show verse numbers that start a new verse (not continuation lines) - Live Preview */
-.bible-poetry.bible-numbers-first .cm-line:has(.cm-html-embed:has(sup)) + .cm-line .cm-html-embed:has(sup) {
-    display: none !important;
-}
-
-/* But allow them to show again after a gap (new verse) - Live Preview */
-.bible-poetry.bible-numbers-first .cm-line:not(:has(.cm-html-embed:has(sup))) + .cm-line .cm-html-embed:has(sup) {
-    display: block !important;
-}
-
-/* Poetry verse numbering for Reading mode - this is more complex since we need to handle line breaks within paragraphs */
-.bible-poetry.bible-numbers-first p {
-    /* For poetry in reading mode, we need different handling since verse numbers and line breaks are within the same paragraph */
-}
-
-/* Alternative approach for poetry in Reading mode: target specific patterns */
-.bible-poetry.bible-numbers-first p sup ~ br + sup {
-    display: none !important;
 }
 
 /* ‼️ NOTE TOOLBAR */
