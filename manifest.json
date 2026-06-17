@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-scripture",
 	"name": "Scripture",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"minAppVersion": "1.9.0",
 	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
 	"author": "Luke Wilson",
