@@ -1,19 +1,16 @@
-import { App, Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, Notice, setIcon, TFile, WorkspaceLeaf } from 'obsidian';
-import { detectReferences, PassageReference } from 'scripture-references';
+import { App, MarkdownView, Notice, setIcon, TFile } from 'obsidian';
+import type { Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, WorkspaceLeaf } from 'obsidian';
+import { detectReferences } from 'scripture-references';
+import type { PassageReference, PassageMatch } from 'scripture-references';
 import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSettings } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 import { CalloutFormatter } from './callout-formatter';
 import { formatReferenceDisplay } from './reference-format';
+import { parseScriptureListInput } from './scripture-list-parser';
+import type { ParsedScriptureListEntry } from './scripture-list-parser';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add' | 'paste';
-interface ParsedScriptureListEntry {
-	originalInput: string;
-	reference: string;
-	highlighted: boolean;
-	highlightMarker?: string;
-}
-
 export interface ScriptureListRenderContext {
 	sourcePath: string;
 	containerEl: HTMLElement;
@@ -39,10 +36,10 @@ interface SourceLineReference {
 	processedReference?: ProcessedReference;
 }
 
-interface ScriptureReferenceMatch {
-	text: string;
-	index?: number;
-	ref: PassageReference;
+type ScriptureReferenceMatch = PassageMatch;
+
+interface MarkdownViewWithSetMode extends MarkdownView {
+	setMode(mode: 'source' | 'preview'): void;
 }
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -70,8 +67,11 @@ const parseReferenceAndTranslationFromTranslations = (
 		return { reference: trimmedText, translation: null };
 	}
 
+	const matchedTranslation = match[1];
+	if (!matchedTranslation) return { reference: trimmedText, translation: null };
+
 	const foundTranslation = translations.find(t =>
-		t.name.toUpperCase() === match[1].toUpperCase()
+		t.name.toUpperCase() === matchedTranslation.toUpperCase()
 	);
 
 	if (!foundTranslation) {
@@ -113,22 +113,7 @@ export class ScriptureListRenderer {
 	 * Parse codeblock content into individual reference lines
 	 */
 	parseScriptureListInput(content: string): ParsedScriptureListEntry[] {
-		return content
-			.split('\n')
-			.map(line => line.trim())
-			.filter(line => line.length > 0)
-			.map(line => {
-				const markerMatch = line.match(/^([-*]\s+)/);
-				const highlightMarker = markerMatch?.[1];
-				const highlighted = Boolean(highlightMarker);
-				const reference = highlightMarker ? line.slice(highlightMarker.length).trim() : line;
-				return {
-					originalInput: line,
-					reference,
-					highlighted,
-					highlightMarker
-				};
-			});
+		return parseScriptureListInput(content);
 	}
 
 	/**
@@ -158,10 +143,9 @@ export class ScriptureListRenderer {
 				}
 
 				// Detect the reference using scripture-references library
-				const matchGenerator = detectReferences(reference);
-				const matches = Array.from(matchGenerator);
+				const firstMatch = Array.from(detectReferences(reference))[0];
 
-				if (!matches || matches.length === 0 || !(matches[0] as any).ref) {
+				if (!firstMatch) {
 					processed.push({
 						originalInput: entry.originalInput,
 						parsedReference: reference,
@@ -173,7 +157,7 @@ export class ScriptureListRenderer {
 					continue;
 				}
 
-				const passageRef = (matches[0] as any).ref as PassageReference;
+				const passageRef = firstMatch.ref;
 
 				// Look up the verses
 				const verses = await this.lookupVerses(passageRef, translationObj);
@@ -191,19 +175,21 @@ export class ScriptureListRenderer {
 				}
 
 				// Determine testament and bookNumber from first verse's book
-				const testament = await this.getTestament(verses[0].book, translationObj);
-				const bookNumber = await this.getBookNumber(verses[0].book, translationObj);
+				const firstVerse = verses[0];
+				if (!firstVerse) continue;
+				const testament = await this.getTestament(firstVerse.book, translationObj);
+				const bookNumber = await this.getBookNumber(firstVerse.book, translationObj);
 
 				// Format the proper reference display (e.g., "John 3:16" or "John 3:16, NLT")
 				const displayRef = this.formatReferenceDisplay(verses, translationToUse, passageRef.type === 'chapter');
 
-					processed.push({
-						originalInput: entry.originalInput,
-						parsedReference: displayRef,
-						translation: translationToUse,
-						highlighted: entry.highlighted,
-						highlightMarker: entry.highlightMarker,
-						verses,
+				processed.push({
+					originalInput: entry.originalInput,
+					parsedReference: displayRef,
+					translation: translationToUse,
+					highlighted: entry.highlighted,
+					highlightMarker: entry.highlightMarker,
+					verses,
 					testament,
 					bookNumber,
 					isChapterReference: passageRef.type === 'chapter'
@@ -367,6 +353,7 @@ export class ScriptureListRenderer {
 		for (let i = 0; i < references.length; i++) {
 			const previous = references[i - 1];
 			const current = references[i];
+			if (!current) continue;
 			if (previous && this.shouldSeparateTestaments(previous, current)) {
 				lines.push('');
 			}
@@ -499,7 +486,7 @@ export class ScriptureListRenderer {
 	/**
 	 * Format reference display with translation suffix if needed
 	 */
-	private formatReferenceDisplay(verses: BibleVerse[], translation: string, isChapterReference: boolean = false): string {
+	private formatReferenceDisplay(verses: BibleVerse[], translation: string, isChapterReference = false): string {
 		return formatReferenceDisplay(
 			verses,
 			translation,
@@ -515,8 +502,7 @@ export class ScriptureListRenderer {
 	 */
 	async renderTable(container: HTMLElement, processedReferences: ProcessedReference[], renderContext?: ScriptureListRenderContext): Promise<void> {
 		// Add wrapper for positioning
-		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
-		wrapper.style.position = 'relative';
+		const wrapper = container.createDiv({ cls: 'scripture-list-wrapper' });
 
 		// Add edit button at the top right
 		if (renderContext) {
@@ -583,35 +569,24 @@ export class ScriptureListRenderer {
 	 * Render a collapsible testament section with h6 header
 	 */
 	private renderTestamentSection(container: HTMLElement, testamentName: string, references: ProcessedReference[], renderContext?: ScriptureListRenderContext): void {
-		const section = container.createEl('div', { cls: 'scripture-list-testament-section' });
-		section.style.marginBottom = '16px';
+		const section = container.createDiv({ cls: 'scripture-list-testament-section' });
 
 		// Create h6 header
 		const header = section.createEl('h6', { cls: 'scripture-list-testament-header' });
-		header.style.cursor = 'pointer';
-		header.style.userSelect = 'none';
-		header.style.display = 'flex';
-		header.style.alignItems = 'center';
-		header.style.gap = '6px';
 
 		// Add testament name
 		header.createSpan({ text: testamentName });
 
 		// Add collapse indicator icon right after the text
 		const indicator = header.createSpan({ cls: 'collapse-indicator' });
-		indicator.style.display = 'flex';
-		indicator.style.alignItems = 'center';
 		setIcon(indicator, 'chevron-down');
 
 		// Create table
 		const table = section.createEl('table', { cls: 'scripture-list-table' });
-		table.style.width = '100%';
-		table.style.borderCollapse = 'collapse';
-		table.style.marginTop = '8px';
 
 		const foldStateKey = this.getFoldStateKey(renderContext, testamentName);
 		let isExpanded = this.getStoredFoldState(foldStateKey);
-		table.style.display = isExpanded ? '' : 'none';
+		table.toggleClass('scripture-list-collapsed', !isExpanded);
 		indicator.empty();
 		setIcon(indicator, isExpanded ? 'chevron-down' : 'chevron-right');
 
@@ -625,12 +600,9 @@ export class ScriptureListRenderer {
 			}
 
 			const row = tbody.createEl('tr', { cls: rowClasses.join(' ') });
-			row.style.borderBottom = '1px solid var(--background-modifier-border)';
 
 			// Reference column
-			const refCell = row.createEl('td', {
-				attr: { style: 'padding: 8px; vertical-align: top; white-space: nowrap;' }
-			});
+			const refCell = row.createEl('td', { cls: 'scripture-list-reference-cell' });
 
 			if (!ref.error && ref.verses) {
 				this.renderReferenceLink(refCell, ref);
@@ -639,21 +611,16 @@ export class ScriptureListRenderer {
 			}
 
 			// Text column
-			const textCell = row.createEl('td', {
-				attr: { style: 'padding: 8px; vertical-align: top;' }
-			});
-			textCell.style.whiteSpace = 'pre-wrap';
+			const textCell = row.createEl('td', { cls: 'scripture-list-text-cell' });
 
 			if (ref.error) {
-				textCell.innerHTML = `<span style="color: var(--text-error);">❌ ${ref.error}</span>`;
+				textCell.createSpan({ cls: 'scripture-list-error', text: `❌ ${ref.error}` });
 			} else if (ref.verses) {
 				textCell.textContent = this.formatVerseText(ref.verses);
 			}
 
 			// Copy button column
-			const copyCell = row.createEl('td', {
-				attr: { style: 'padding: 8px; text-align: center; vertical-align: top; width: 60px;' }
-			});
+			const copyCell = row.createEl('td', { cls: 'scripture-list-copy-cell' });
 
 			if (!ref.error && ref.verses) {
 				this.renderCopyButton(copyCell, ref);
@@ -663,7 +630,7 @@ export class ScriptureListRenderer {
 		// Add collapse/expand functionality
 		header.addEventListener('click', () => {
 			isExpanded = !isExpanded;
-			table.style.display = isExpanded ? '' : 'none';
+			table.toggleClass('scripture-list-collapsed', !isExpanded);
 			indicator.empty();
 			setIcon(indicator, isExpanded ? 'chevron-down' : 'chevron-right');
 			this.storeFoldState(foldStateKey, isExpanded);
@@ -680,6 +647,7 @@ export class ScriptureListRenderer {
 		}
 
 		const firstVerse = ref.verses[0];
+		if (!firstVerse) return;
 		const bookName = firstVerse.book;
 		const chapter = firstVerse.chapter;
 		const verse = firstVerse.verse;
@@ -718,11 +686,7 @@ export class ScriptureListRenderer {
 		// Handle click to navigate within Obsidian
 		link.addEventListener('click', (e) => {
 			e.preventDefault();
-			// Use Obsidian's internal link navigation
-			const app = (window as any).app;
-			if (app) {
-				app.workspace.openLinkText(`${linkPath}${anchor}`, '', false, { active: true });
-			}
+			void this.app.workspace.openLinkText(`${linkPath}${anchor}`, '', false, { active: true });
 		});
 	}
 
@@ -734,6 +698,7 @@ export class ScriptureListRenderer {
 
 		for (let i = 0; i < verses.length; i++) {
 			const verse = verses[i];
+			if (!verse) continue;
 			const verseText = verse.content.join('\n');
 
 			if (i === 0) {
@@ -765,7 +730,7 @@ export class ScriptureListRenderer {
 
 	private getStoredFoldState(foldStateKey: string): boolean {
 		try {
-			const rawState = window.localStorage.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
+			const rawState = this.getLocalStorage()?.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
 			if (!rawState) {
 				return true;
 			}
@@ -780,10 +745,12 @@ export class ScriptureListRenderer {
 
 	private storeFoldState(foldStateKey: string, isExpanded: boolean): void {
 		try {
-			const rawState = window.localStorage.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
+			const storage = this.getLocalStorage();
+			if (!storage) return;
+			const rawState = storage.getItem(ScriptureListRenderer.FOLD_STATE_KEY);
 			const parsedState = rawState ? JSON.parse(rawState) as Record<string, boolean> : {};
 			parsedState[foldStateKey] = isExpanded;
-			window.localStorage.setItem(
+			storage.setItem(
 				ScriptureListRenderer.FOLD_STATE_KEY,
 				JSON.stringify(parsedState)
 			);
@@ -796,7 +763,7 @@ export class ScriptureListRenderer {
 	 * Render edit button to switch to source mode
 	 */
 	public renderEmptyState(container: HTMLElement, renderContext?: ScriptureListRenderContext): void {
-		const wrapper = container.createEl('div', { cls: 'scripture-list-wrapper' });
+		const wrapper = container.createDiv({ cls: 'scripture-list-wrapper' });
 		const emptyMessage = wrapper.createDiv({ cls: 'scripture-list-empty' });
 		emptyMessage.textContent = 'No references provided';
 
@@ -828,17 +795,17 @@ export class ScriptureListRenderer {
 			add: {
 				ariaLabel: 'Add scripture to list',
 				icon: 'plus',
-				text: 'Add Scripture'
+				text: 'Add scripture'
 			},
 			edit: {
 				ariaLabel: 'Edit scripture list',
 				icon: 'edit',
-				text: 'Edit List'
+				text: 'Edit list'
 			},
 			paste: {
 				ariaLabel: 'Paste scripture from clipboard',
 				icon: 'clipboard-paste',
-				text: 'Paste Scripture'
+				text: 'Paste scripture'
 			}
 		}[action];
 
@@ -868,26 +835,19 @@ export class ScriptureListRenderer {
 		button.addEventListener('pointerdown', consumeEditorMouseEvent);
 		button.addEventListener('mousedown', consumeEditorMouseEvent);
 
-		button.addEventListener('click', async (e) => {
+		button.addEventListener('click', (e) => {
 			consumeEditorMouseEvent(e);
 
 			if (action === 'paste') {
-				await this.pasteReferenceFromClipboard(renderContext);
+				void this.pasteReferenceFromClipboard(renderContext);
 				return;
 			}
 
-			setTimeout(() => {
+			window.setTimeout(() => {
 				this.openCodeBlockForAction(renderContext, action);
 			}, 0);
 		});
 
-		// Hover effect
-		button.addEventListener('mouseenter', () => {
-			button.style.color = 'var(--text-normal)';
-		});
-		button.addEventListener('mouseleave', () => {
-			button.style.color = 'var(--text-muted)';
-		});
 	}
 
 	private async pasteReferenceFromClipboard(renderContext: ScriptureListRenderContext): Promise<void> {
@@ -907,7 +867,7 @@ export class ScriptureListRenderer {
 
 		const references = this.extractFirstScriptureListReferences(clipboardText);
 		if (references.length === 0) {
-			new Notice('No scripture reference found in clipboard');
+			new Notice('No Scripture reference found in clipboard');
 			return;
 		}
 
@@ -932,15 +892,15 @@ export class ScriptureListRenderer {
 	}
 
 	private extractFirstScriptureListReferences(text: string): string[] {
-		const matches = (Array.from(detectReferences(text)) as any[])
-			.filter((match: any): match is ScriptureReferenceMatch => Boolean(match?.text && match?.ref));
+		const matches = Array.from(detectReferences(text));
 		const firstMatch = matches[0];
 		if (!firstMatch) {
 			return [];
 		}
 
 		const referenceGroup = this.extractLeadingCommaSeparatedReferenceGroup(text, matches);
-		const lastMatch = referenceGroup[referenceGroup.length - 1];
+		const lastMatch = referenceGroup.at(-1);
+		if (!lastMatch) return [];
 		const suffixStart = this.getMatchEndIndex(text, lastMatch);
 		const suffix = suffixStart !== null
 			? this.extractTrailingTranslationSuffix(text.slice(suffixStart))
@@ -956,10 +916,13 @@ export class ScriptureListRenderer {
 		text: string,
 		matches: ScriptureReferenceMatch[]
 	): ScriptureReferenceMatch[] {
-		const group = [matches[0]];
+		const firstMatch = matches[0];
+		if (!firstMatch) return [];
+		const group: ScriptureReferenceMatch[] = [firstMatch];
 
 		for (const match of matches.slice(1)) {
-			const previousMatch = group[group.length - 1];
+			const previousMatch = group.at(-1);
+			if (!previousMatch) break;
 			const previousEnd = this.getMatchEndIndex(text, previousMatch);
 			const nextStart = this.getMatchStartIndex(text, match);
 			if (previousEnd === null || nextStart === null) {
@@ -1067,10 +1030,7 @@ export class ScriptureListRenderer {
 	}
 
 	private openCodeBlockForAction(renderContext: ScriptureListRenderContext, action: ScriptureListAction): void {
-		const app = (window as any).app;
-		if (!app) return;
-
-		const markdownView = this.getMarkdownViewForRenderContext(app, renderContext);
+		const markdownView = this.getMarkdownViewForRenderContext(this.app, renderContext);
 		if (!markdownView) return;
 
 		const sectionInfo = renderContext.getSectionInfo();
@@ -1094,9 +1054,9 @@ export class ScriptureListRenderer {
 		};
 
 		if (markdownView.getMode() !== 'source') {
-			(markdownView as any).setMode('source');
+			(markdownView as MarkdownViewWithSetMode).setMode('source');
 
-			setTimeout(() => {
+			window.setTimeout(() => {
 				applyAction();
 			}, 150);
 			return;
@@ -1112,13 +1072,13 @@ export class ScriptureListRenderer {
 	private async appendLinesToCodeBlockSource(renderContext: ScriptureListRenderContext, linesToAppend: string[]): Promise<void> {
 		const sectionInfo = renderContext.getSectionInfo();
 		if (!sectionInfo) {
-			new Notice('Unable to locate scripture list');
+			new Notice('Unable to locate Scripture list');
 			return;
 		}
 
 		const file = this.app.vault.getAbstractFileByPath(renderContext.sourcePath);
 		if (!(file instanceof TFile)) {
-			new Notice('Unable to locate scripture list file');
+			new Notice('Unable to locate Scripture list file');
 			return;
 		}
 
@@ -1138,7 +1098,7 @@ export class ScriptureListRenderer {
 			});
 		} catch (error) {
 			console.error('Failed to append scripture list reference:', error);
-			new Notice('Failed to update scripture list');
+			new Notice('Failed to update Scripture list');
 			return;
 		}
 
@@ -1148,11 +1108,11 @@ export class ScriptureListRenderer {
 				: `Added ${linesToAppend.length} references to scripture list`
 			);
 		} else {
-			new Notice('Unable to locate scripture list');
+			new Notice('Unable to locate Scripture list');
 		}
 	}
 
-	private getMarkdownViewForRenderContext(app: any, renderContext: ScriptureListRenderContext): MarkdownView | null {
+	private getMarkdownViewForRenderContext(app: App, renderContext: ScriptureListRenderContext): MarkdownView | null {
 		let matchingView: MarkdownView | null = null;
 
 		app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
@@ -1202,12 +1162,14 @@ export class ScriptureListRenderer {
 			const startAt = Math.min(sectionData.lineStart, lines.length - 1);
 
 			for (let i = startAt; i >= 0; i--) {
-				if (!isScriptureListOpening(lines[i])) {
+				const line = lines[i];
+				if (!line || !isScriptureListOpening(line)) {
 					continue;
 				}
 
 				for (let j = i + 1; j < lines.length; j++) {
-					if (isClosingFence(lines[j])) {
+					const closingLine = lines[j];
+					if (closingLine && isClosingFence(closingLine)) {
 						if (sectionData.lineStart <= j || sectionData.lineEnd === undefined || sectionData.lineEnd <= j + 1) {
 							return {
 								lineStart: i,
@@ -1222,9 +1184,11 @@ export class ScriptureListRenderer {
 		}
 
 		for (let i = 0; i < lines.length; i++) {
-			if (isScriptureListOpening(lines[i])) {
+			const line = lines[i];
+			if (line && isScriptureListOpening(line)) {
 				for (let j = i + 1; j < lines.length; j++) {
-					if (isClosingFence(lines[j])) {
+					const closingLine = lines[j];
+					if (closingLine && isClosingFence(closingLine)) {
 						return {
 							lineStart: i,
 							lineEnd: j
@@ -1252,7 +1216,7 @@ export class ScriptureListRenderer {
 	}
 
 	private retryCursorPlacementIfNeeded(editor: Editor, target: CodeBlockCursorTarget): void {
-		setTimeout(() => {
+		window.setTimeout(() => {
 			const cursor = editor.getCursor();
 			if (cursor.line === target.line && cursor.ch === target.ch) {
 				return;
@@ -1286,8 +1250,7 @@ export class ScriptureListRenderer {
 		const button = cell.createEl('button', {
 			cls: 'scripture-copy-button',
 			attr: {
-				'aria-label': 'Copy scripture callout',
-				style: 'cursor: pointer; padding: 4px 8px; border: none; background: transparent; color: var(--text-muted);'
+				'aria-label': 'Copy Scripture callout'
 			}
 		});
 
@@ -1295,42 +1258,31 @@ export class ScriptureListRenderer {
 		setIcon(button, 'copy');
 
 		// Handle click
-		button.addEventListener('click', async () => {
-			if (!ref.verses) return;
-
-			try {
-				// Use CalloutFormatter to generate the exact same callout as the Insert command
-				const callout = this.calloutFormatter.formatCallout(
-					ref.parsedReference,
-					ref.verses,
-					ref.translation,
-					ref.verses.length > 1 // Include verse numbers for multi-verse selections
-				);
-
-				// Copy to clipboard
-				await navigator.clipboard.writeText(callout);
-
-				// Show success feedback
-				new Notice('Scripture callout copied to clipboard');
-
-				// Visual feedback on button
-				button.style.color = 'var(--text-success)';
-				setTimeout(() => {
-					button.style.color = 'var(--text-muted)';
-				}, 1000);
-
-			} catch (error) {
-				console.error('Error copying to clipboard:', error);
-				new Notice('Failed to copy to clipboard');
-			}
+		button.addEventListener('click', () => {
+			void this.copyCalloutToClipboard(button, ref);
 		});
+	}
 
-		// Hover effect
-		button.addEventListener('mouseenter', () => {
-			button.style.color = 'var(--text-normal)';
-		});
-		button.addEventListener('mouseleave', () => {
-			button.style.color = 'var(--text-muted)';
-		});
+	private getLocalStorage(): Storage | null {
+		return this.app.workspace.containerEl.ownerDocument.defaultView?.localStorage ?? null;
+	}
+
+	private async copyCalloutToClipboard(button: HTMLButtonElement, ref: ProcessedReference): Promise<void> {
+		if (!ref.verses) return;
+		try {
+			const callout = this.calloutFormatter.formatCallout(
+				ref.parsedReference,
+				ref.verses,
+				ref.translation,
+				ref.verses.length > 1
+			);
+			await navigator.clipboard.writeText(callout);
+			new Notice('Scripture callout copied to clipboard');
+			button.addClass('is-copied');
+			window.setTimeout(() => button.removeClass('is-copied'), 1000);
+		} catch (error) {
+			console.error('Error copying to clipboard:', error);
+			new Notice('Failed to copy to clipboard');
+		}
 	}
 }

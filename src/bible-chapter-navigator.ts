@@ -1,4 +1,4 @@
-import { App, TFile, SuggestModal, Notice, KeymapEventHandler } from 'obsidian';
+import { App, TFile, SuggestModal, Notice } from 'obsidian';
 import type { ScriptureSettings, BibleTranslation } from './types';
 import { getBibleNoteTranslation, getNoteEnabledTranslations, isBibleNoteFile, normalizeNotesDirectory } from './bible-note-utils';
 
@@ -47,7 +47,7 @@ export class BibleChapterNavigator {
 		}
 
 		new TranslationSelectorModal(this.app, availableTranslations, (option, evt) => {
-			this.navigateToTranslation(activeFile, option.translation, evt);
+			void this.navigateToTranslation(activeFile, option.translation, evt);
 		}).open();
 	}
 
@@ -70,7 +70,7 @@ export class BibleChapterNavigator {
 	 */
 	private getAvailableTranslations(currentFile: TFile): TranslationOption[] {
 		const currentTranslation = this.getCurrentTranslation(currentFile);
-		
+
 		return getNoteEnabledTranslations(this.settings)
 			.map(translation => ({
 				translation,
@@ -84,16 +84,16 @@ export class BibleChapterNavigator {
 	private async navigateToTranslation(currentFile: TFile, targetTranslation: BibleTranslation, evt?: MouseEvent | KeyboardEvent): Promise<void> {
 		// Get the current file's ID from frontmatter
 		const cache = this.app.metadataCache.getFileCache(currentFile);
-		const currentId = cache?.frontmatter?.id;
+		const currentId: unknown = cache?.frontmatter?.id;
 
-		if (!currentId) {
-			new Notice('Current file has no ID in frontmatter');
+		if (typeof currentId !== 'string' || !currentId) {
+			new Notice('Current file has no id in frontmatter');
 			return;
 		}
 
 		// Find the matching file in the target translation
 		const targetFile = await this.findFileByIdInTranslation(currentId, targetTranslation);
-		
+
 		if (!targetFile) {
 			new Notice(`Chapter not found in ${targetTranslation.fullName}`);
 			return;
@@ -104,11 +104,11 @@ export class BibleChapterNavigator {
 		const openInNewPane = evt && (evt.ctrlKey || evt.metaKey) && evt.shiftKey;
 
 		if (openInNewPane) {
-			this.app.workspace.splitActiveLeaf().openFile(targetFile);
+			await this.app.workspace.getLeaf('split', 'vertical').openFile(targetFile);
 		} else if (openInNewTab) {
-			this.app.workspace.openLinkText(targetFile.path, '', true);
+			await this.app.workspace.openLinkText(targetFile.path, '', true);
 		} else {
-			this.app.workspace.openLinkText(targetFile.path, '');
+			await this.app.workspace.openLinkText(targetFile.path, '');
 		}
 	}
 
@@ -120,19 +120,19 @@ export class BibleChapterNavigator {
 
 		// Get all markdown files
 		const allFiles = this.app.vault.getMarkdownFiles();
-		
+
 		// Filter to files in the translation's notes directory (including subdirectories)
 		const normalizedDir = normalizeNotesDirectory(translation.notesDirectory || '');
 
-		const translationFiles = allFiles.filter(file => 
+		const translationFiles = allFiles.filter(file =>
 			file.path.startsWith(normalizedDir)
 		);
 
 		// Search for file with matching ID
 		for (const file of translationFiles) {
 			const cache = this.app.metadataCache.getFileCache(file);
-			const fileId = cache?.frontmatter?.id;
-			
+			const fileId: unknown = cache?.frontmatter?.id;
+
 			if (fileId === targetId) {
 				return file;
 			}
@@ -150,14 +150,14 @@ class TranslationSelectorModal extends SuggestModal<TranslationOption> {
 		super(app);
 		this.options = options;
 		this.onSelect = onSelect;
-		
+
 		this.setPlaceholder('Select translation to open...');
 	}
 
 	getSuggestions(query: string): TranslationOption[] {
 		const lowerQuery = query.toLowerCase();
-		
-		return this.options.filter(option => 
+
+		return this.options.filter(option =>
 			option.translation.fullName.toLowerCase().includes(lowerQuery) ||
 			option.translation.name.toLowerCase().includes(lowerQuery)
 		);
@@ -165,31 +165,22 @@ class TranslationSelectorModal extends SuggestModal<TranslationOption> {
 
 	renderSuggestion(option: TranslationOption, el: HTMLElement): void {
 		// Create a container with flexbox layout
-		const container = el.createEl('div', {
-			cls: option.isCurrent ? 'is-selected' : ''
+		const container = el.createDiv({
+			cls: ['scripture-translation-option', ...(option.isCurrent ? ['is-selected'] : [])]
 		});
-		container.style.display = 'flex';
-		container.style.alignItems = 'center';
-		container.style.gap = '8px';
-		
+
 		// Add checkmark for current translation (on the left)
 		if (option.isCurrent) {
-			const checkmark = container.createEl('span', { 
+			container.createSpan({
 				text: '✓',
 				cls: 'bible-current-translation-indicator'
 			});
-			checkmark.style.color = 'var(--text-accent)';
-			checkmark.style.fontWeight = 'bold';
-			checkmark.style.flexShrink = '0';
 		} else {
-			// Add empty space to maintain alignment
-			const spacer = container.createEl('span', { text: '' });
-			spacer.style.width = '16px';
-			spacer.style.flexShrink = '0';
+			container.createSpan({ cls: 'scripture-translation-spacer' });
 		}
-		
+
 		// Add the translation name
-		container.createEl('span', { 
+		container.createSpan({
 			text: option.translation.fullName
 		});
 	}

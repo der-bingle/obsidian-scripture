@@ -1,26 +1,38 @@
-import { App, Editor, MarkdownView, Plugin, Notice, WorkspaceLeaf, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Plugin, Notice, TFile, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { detectReferences } from 'scripture-references';
-import { ScriptureModal } from './src/modal';
-import { ScriptureSettingTab } from './src/settings';
-import { CalloutFormatter } from './src/callout-formatter';
-import { BibleDataLoader } from './src/bible-data-loader';
-import { BibleVerseDisplayManager } from './src/bible-verse-display-manager';
-import { BibleChapterNavigator } from './src/bible-chapter-navigator';
-import { BibleNoteTitleManager } from './src/bible-note-title-manager';
-import { createScriptureListRenderContext, ScriptureListRenderer } from './src/scripture-list-renderer';
-import { ScriptureNoteSwitcherModal, type ScriptureNoteSuggestion } from './src/scripture-note-switcher';
-import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation, ReferenceFormat } from './src/types';
-import type { InsertionTarget } from './src/callout-formatter';
-import { DEFAULT_SETTINGS } from './src/types';
+import { ScriptureModal } from './modal';
+import { ScriptureSettingTab } from './settings';
+import { CalloutFormatter } from './callout-formatter';
+import { BibleDataLoader } from './bible-data-loader';
+import { BibleVerseDisplayManager } from './bible-verse-display-manager';
+import { BibleChapterNavigator } from './bible-chapter-navigator';
+import { BibleNoteTitleManager } from './bible-note-title-manager';
+import { createScriptureListRenderContext, ScriptureListRenderer } from './scripture-list-renderer';
+import { ScriptureNoteSwitcherModal } from './scripture-note-switcher';
+import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation, ReferenceFormat, ScriptureSidebarSide, ScriptureSidebarState } from './types';
+import type { InsertionTarget } from './callout-formatter';
+import { migrateStoredSettings } from './settings-migrations';
+import { getBibleNoteChapterReference } from './bible-note-utils';
+import { resolveScriptureLink } from './scripture-link';
+import { cloneScriptureSidebarState, createScriptureSidebarState, getSidebarDefaultTranslation } from './scripture-sidebar-state';
+import { SCRIPTURE_SIDEBAR_VIEW_TYPE, ScriptureSidebarView } from './scripture-sidebar-view';
+
+interface AppWithPlugins extends App {
+	plugins: {
+		plugins: Record<string, Scripture>;
+	};
+}
 
 export default class Scripture extends Plugin {
-	settings: ScriptureSettings;
-	private calloutFormatter: CalloutFormatter;
-	private dataLoader: BibleDataLoader;
-	private verseDisplayManager: BibleVerseDisplayManager;
-	private chapterNavigator: BibleChapterNavigator;
-	private bibleNoteTitleManager: BibleNoteTitleManager;
-	public api: ScriptureAPI;
+	settings!: ScriptureSettings;
+	private calloutFormatter!: CalloutFormatter;
+	private dataLoader!: BibleDataLoader;
+	private verseDisplayManager!: BibleVerseDisplayManager;
+	private chapterNavigator!: BibleChapterNavigator;
+	private bibleNoteTitleManager!: BibleNoteTitleManager;
+	private lastUsedSidebarLeaf: WorkspaceLeaf | null = null;
+	private translationConfigSignature = '';
+	public api!: ScriptureAPI;
 
 	async onload() {
 		await this.loadSettings();
@@ -28,9 +40,50 @@ export default class Scripture extends Plugin {
 		// Initialize components
 		this.calloutFormatter = new CalloutFormatter(this.settings);
 		this.dataLoader = new BibleDataLoader(this.app);
+		this.translationConfigSignature = this.getTranslationConfigSignature();
 		this.verseDisplayManager = new BibleVerseDisplayManager(this.app, this.settings);
 		this.chapterNavigator = new BibleChapterNavigator(this.app, this.settings);
 		this.bibleNoteTitleManager = new BibleNoteTitleManager(this.app, this.settings);
+
+		this.registerView(SCRIPTURE_SIDEBAR_VIEW_TYPE, leaf => new ScriptureSidebarView(
+			leaf,
+			this.dataLoader,
+			{
+				getSettings: () => this.settings,
+				onStateChange: state => this.persistSidebarState(state),
+				onUsed: usedLeaf => this.markSidebarUsed(usedLeaf),
+			},
+		));
+
+		this.addRibbonIcon('book-open-text', 'Open Scripture sidebar', () => {
+			void this.openScriptureSidebar();
+		});
+
+		this.addCommand({
+			id: 'open-scripture-sidebar',
+			name: 'Open sidebar',
+			icon: 'book-open-text',
+			callback: () => void this.openScriptureSidebar(),
+		});
+
+		this.addCommand({
+			id: 'open-new-scripture-sidebar',
+			name: 'Open new sidebar',
+			icon: 'book-copy',
+			callback: () => void this.openNewScriptureSidebar(),
+		});
+
+		this.addCommand({
+			id: 'open-current-chapter-in-scripture-sidebar',
+			name: 'Open current chapter in sidebar',
+			icon: 'panel-right-open',
+			checkCallback: checking => {
+				const reference = this.getActiveBibleNoteReference();
+				if (!reference) return false;
+				if (!checking) void this.openCurrentChapterInSidebar(reference.bookId, reference.chapter);
+				return true;
+			},
+		});
 
 		// Register scriptureList codeblock processor
 		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
@@ -65,9 +118,9 @@ export default class Scripture extends Plugin {
 		// Add command to insert Scripture text
 		this.addCommand({
 			id: 'insert-scripture',
-			name: 'Insert Scripture',
+			name: 'Insert',
 			icon: 'book-plus',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
+			editorCallback: (editor: Editor) => {
 				if (this.settings.translations.length === 0) {
 					new Notice('No translations configured. Please add translations in plugin settings.');
 					return;
@@ -97,7 +150,7 @@ export default class Scripture extends Plugin {
 					true,
 					true,
 					selectionInfo.cursorPosition,
-					'Insert Scripture'
+					'Insert scripture'
 				).open();
 			}
 		});
@@ -105,9 +158,9 @@ export default class Scripture extends Plugin {
 		// Add command to insert a Scripture link only
 		this.addCommand({
 			id: 'insert-scripture-link',
-			name: 'Insert Scripture Link',
+			name: 'Insert link',
 			icon: 'link',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
+			editorCallback: (editor: Editor) => {
 				if (this.settings.translations.length === 0) {
 					new Notice('No translations configured. Please add translations in plugin settings.');
 					return;
@@ -133,7 +186,7 @@ export default class Scripture extends Plugin {
 					false,
 					false, // Don't show verse numbers toggle for link-only insertion
 					selectionInfo.cursorPosition,
-					'Insert Scripture Link'
+					'Insert scripture link'
 				).open();
 			}
 		});
@@ -141,7 +194,7 @@ export default class Scripture extends Plugin {
 		// Add command to navigate between Bible chapter translations
 		this.addCommand({
 			id: 'open-chapter-in-translation',
-			name: 'Open Chapter in Other Translation',
+			name: 'Open chapter in other translation',
 			icon: 'book-open',
 			checkCallback: (checking: boolean) => {
 				// Only enable command when a Bible chapter note is open
@@ -158,12 +211,12 @@ export default class Scripture extends Plugin {
 		// Add command to open scripture notes (quick-switcher style)
 		this.addCommand({
 			id: 'open-scripture-note',
-			name: 'Open Scripture Note',
+			name: 'Open note',
 			icon: 'search',
 			callback: () => {
 				const noteTranslations = this.getNoteEnabledTranslations();
 				if (noteTranslations.length === 0) {
-					new Notice('No translations configured with scripture notes. Enable "Available as Notes" in settings.');
+					new Notice('No translations configured with Scripture notes. Enable "available as notes" in settings.');
 					return;
 				}
 
@@ -185,7 +238,7 @@ export default class Scripture extends Plugin {
 							translationFullName: translationObj?.fullName || resolved.translation,
 							path: resolved.path,
 							anchor: resolved.anchor
-						} as ScriptureNoteSuggestion;
+						};
 					},
 					async (suggestion, evt) => {
 						await this.openResolvedScriptureNote(suggestion.path, suggestion.anchor, evt instanceof KeyboardEvent ? evt : undefined);
@@ -198,12 +251,12 @@ export default class Scripture extends Plugin {
 		// Add command to open scripture note from clipboard
 		this.addCommand({
 			id: 'open-scripture-from-clipboard',
-			name: 'Open Scripture from Clipboard',
+			name: 'Open from clipboard',
 			icon: 'clipboard-paste',
 			callback: async () => {
 				const noteTranslations = this.getNoteEnabledTranslations();
 				if (noteTranslations.length === 0) {
-					new Notice('No translations configured with scripture notes. Enable "Available as Notes" in settings.');
+					new Notice('No translations configured with Scripture notes. Enable "available as notes" in settings.');
 					return;
 				}
 
@@ -222,7 +275,7 @@ export default class Scripture extends Plugin {
 
 				const success = await this.openScriptureNote(clipboardText.trim());
 				if (!success) {
-					new Notice('No valid scripture reference found in clipboard');
+					new Notice('No valid Scripture reference found in clipboard');
 				}
 			}
 		});
@@ -230,10 +283,11 @@ export default class Scripture extends Plugin {
 		// Add command to toggle verse number visibility
 		this.addCommand({
 			id: 'toggle-verse-numbers',
-			name: 'Toggle Verse Numbers',
+			name: 'Toggle verse numbers',
 			callback: () => {
 				const displayName = this.verseDisplayManager.toggleVerseNumbers();
-				this.saveSettings();
+				this.refreshSidebarVerseDisplay();
+				void this.saveSettings();
 				new Notice(`Verse numbers: ${displayName}`);
 			}
 		});
@@ -241,10 +295,11 @@ export default class Scripture extends Plugin {
 		// Add command to show first verse only
 		this.addCommand({
 			id: 'show-first-verse-only',
-			name: 'Show First Verse Only',
+			name: 'Show first verse only',
 			callback: () => {
 				const displayName = this.verseDisplayManager.showFirstVerseOnly();
-				this.saveSettings();
+				this.refreshSidebarVerseDisplay();
+				void this.saveSettings();
 				new Notice(`Verse numbers: ${displayName}`);
 			}
 		});
@@ -252,10 +307,11 @@ export default class Scripture extends Plugin {
 		// Add command to show all verse numbers
 		this.addCommand({
 			id: 'show-all-verse-numbers',
-			name: 'Show All Verse Numbers',
+			name: 'Show all verse numbers',
 			callback: () => {
 				const displayName = this.verseDisplayManager.showAllVerseNumbers();
-				this.saveSettings();
+				this.refreshSidebarVerseDisplay();
+				void this.saveSettings();
 				new Notice(`Verse numbers: ${displayName}`);
 			}
 		});
@@ -265,12 +321,7 @@ export default class Scripture extends Plugin {
 			this.app.workspace.on('file-open', (file) => {
 				if (file && this.verseDisplayManager.isBibleNote(file)) {
 					// Use setTimeout to ensure the view is fully loaded
-					setTimeout(() => {
-						const activeLeaf = this.app.workspace.activeLeaf;
-						if (activeLeaf) {
-							this.verseDisplayManager.applyVerseDisplayToLeaf(activeLeaf);
-						}
-					}, 100);
+					window.setTimeout(() => this.verseDisplayManager.applyVerseDisplayToOpenFiles(), 100);
 				}
 
 				this.bibleNoteTitleManager.scheduleRefreshSequence();
@@ -281,17 +332,19 @@ export default class Scripture extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
 				// Apply verse display to any newly opened Bible notes
-				setTimeout(() => {
+				window.setTimeout(() => {
 					this.verseDisplayManager.applyVerseDisplayToOpenFiles();
 				}, 100);
 
 				this.bibleNoteTitleManager.scheduleRefresh();
+				this.refreshSidebarSides();
 			})
 		);
 
 		this.registerEvent(
-			this.app.workspace.on('active-leaf-change', () => {
+			this.app.workspace.on('active-leaf-change', (leaf) => {
 				this.bibleNoteTitleManager.scheduleRefresh();
+				if (leaf?.view instanceof ScriptureSidebarView) this.markSidebarUsed(leaf);
 			})
 		);
 
@@ -316,11 +369,8 @@ export default class Scripture extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new ScriptureSettingTab(this.app, this));
 		
-		console.log('Scripture Plugin loaded');
-		console.log('Configured translations:', this.settings.translations.map(t => t.name));
-
 		// Apply verse display to any Bible notes that are already open
-		setTimeout(() => {
+		window.setTimeout(() => {
 			this.verseDisplayManager.applyVerseDisplayToOpenFiles();
 			this.bibleNoteTitleManager.refreshOpenNoteTitles();
 		}, 1000);
@@ -328,39 +378,50 @@ export default class Scripture extends Plugin {
 		// Initialize and expose the public API
 		this.initializeAPI();
 		
-		// Log API availability for verification
-		console.log('Scripture Plugin API exposed at app.plugins.plugins["scripture"].api');
 	}
 
-	async onunload() {
+	onunload(): void {
 		if (this.bibleNoteTitleManager) {
 			this.bibleNoteTitleManager.restoreAllTitles();
 		}
+		this.lastUsedSidebarLeaf = null;
 
 		// Clean up API reference
-		if ((this.app as any).plugins?.plugins?.['scripture']?.api) {
-			delete (this.app as any).plugins.plugins['scripture'].api;
+		const legacyAlias = (this.app as AppWithPlugins).plugins.plugins.scripture;
+		if (legacyAlias?.api === this.api) {
+			delete (legacyAlias as Partial<Scripture>).api;
 		}
-		console.log('Scripture Plugin unloaded');
 	}
 
-	async loadSettings() {
-		const loadedSettings = await this.loadData();
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);
-		this.migrateReferenceFormatSettings(loadedSettings);
-		
-		// Migrate old settings if needed
-		await this.migrateOldSettings();
+	async loadSettings(): Promise<void> {
+		const migration = migrateStoredSettings(await this.loadData(), normalizePath);
+		this.settings = migration.settings;
+		if (migration.didMigrate) {
+			await this.saveSettings();
+			new Notice('Scripture settings migrated to the current format. Please verify translations in settings.');
+		}
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
+		const noteTranslationCount = this.settings.translations.filter(translation => translation.availableAsNotes && translation.notesDirectory).length;
+		if (noteTranslationCount < 2 && this.settings.linkingStrategy === 'verse-translation') {
+			this.settings.linkingStrategy = 'default-translation';
+		}
+		if (!this.settings.translations.some(translation => translation.name === this.settings.sidebarDefaultTranslation)) {
+			this.settings.sidebarDefaultTranslation = getSidebarDefaultTranslation(this.settings);
+		}
+		const translationConfigSignature = this.getTranslationConfigSignature();
+		if (this.dataLoader && translationConfigSignature !== this.translationConfigSignature) {
+			this.dataLoader.clearCache();
+			this.translationConfigSignature = translationConfigSignature;
+		}
 		await this.saveData(this.settings);
 		
 		// Update components when settings change
 		this.updateComponentSettings();
 	}
 
-	private updateComponentSettings() {
+	private updateComponentSettings(): void {
 		if (this.calloutFormatter) {
 			this.calloutFormatter.updateSettings(this.settings);
 		}
@@ -373,11 +434,138 @@ export default class Scripture extends Plugin {
 		if (this.bibleNoteTitleManager) {
 			this.bibleNoteTitleManager.updateSettings(this.settings);
 		}
+		this.getSidebarViews().forEach(({ view }) => view.updateSettings());
+	}
+
+	private getTranslationConfigSignature(): string {
+		return JSON.stringify(this.settings.translations.map(translation => ({
+			name: translation.name,
+			filePath: translation.filePath,
+		})));
+	}
+
+	refreshVerseDisplay(): void {
+		this.verseDisplayManager.applyVerseDisplayToOpenFiles();
+		this.refreshSidebarVerseDisplay();
+	}
+
+	refreshBibleNoteTitles(): void {
+		this.bibleNoteTitleManager.refreshOpenNoteTitles();
+	}
+
+	private getSidebarViews(): Array<{ leaf: WorkspaceLeaf; view: ScriptureSidebarView }> {
+		return this.app.workspace.getLeavesOfType(SCRIPTURE_SIDEBAR_VIEW_TYPE)
+			.flatMap(leaf => leaf.view instanceof ScriptureSidebarView ? [{ leaf, view: leaf.view }] : []);
+	}
+
+	private refreshSidebarVerseDisplay(): void {
+		this.getSidebarViews().forEach(({ view }) => view.updateVerseDisplay());
+	}
+
+	private getMostRecentSidebar(): { leaf: WorkspaceLeaf; view: ScriptureSidebarView } | null {
+		if (this.lastUsedSidebarLeaf?.view instanceof ScriptureSidebarView) {
+			return { leaf: this.lastUsedSidebarLeaf, view: this.lastUsedSidebarLeaf.view };
+		}
+		const mostRecent = this.getSidebarViews().sort((left, right) => right.view.getLastUsedAt() - left.view.getLastUsedAt())[0] || null;
+		this.lastUsedSidebarLeaf = mostRecent?.leaf || null;
+		return mostRecent;
+	}
+
+	private markSidebarUsed(leaf: WorkspaceLeaf): void {
+		if (leaf.view instanceof ScriptureSidebarView) this.lastUsedSidebarLeaf = leaf;
+	}
+
+	private persistSidebarState(state: ScriptureSidebarState): void {
+		if (!this.settings.lastSidebarState || state.lastUsedAt >= this.settings.lastSidebarState.lastUsedAt) {
+			this.settings.lastSidebarState = { ...state };
+			void this.saveData(this.settings);
+		}
+		this.app.workspace.requestSaveLayout();
+	}
+
+	private async openScriptureSidebar(): Promise<void> {
+		const existing = this.getMostRecentSidebar();
+		if (existing) {
+			existing.view.activate();
+			await this.app.workspace.revealLeaf(existing.leaf);
+			return;
+		}
+		const state = this.settings.lastSidebarState
+			? createScriptureSidebarState(this.settings, this.settings.lastSidebarState)
+			: createScriptureSidebarState(this.settings);
+		await this.createSidebar(state, false);
+	}
+
+	private async openNewScriptureSidebar(): Promise<void> {
+		const existing = this.getMostRecentSidebar();
+		const source = existing?.view.getSidebarState() || this.settings.lastSidebarState;
+		const state = source
+			? cloneScriptureSidebarState(this.settings, source)
+			: createScriptureSidebarState(this.settings);
+		await this.createSidebar(state, true);
+	}
+
+	private async openCurrentChapterInSidebar(bookId: string, chapter: number): Promise<void> {
+		const existing = this.getMostRecentSidebar();
+		if (existing) {
+			await existing.view.navigateToChapter(bookId, chapter);
+			await this.app.workspace.revealLeaf(existing.leaf);
+			return;
+		}
+
+		const state = createScriptureSidebarState(this.settings, {
+			translation: getSidebarDefaultTranslation(this.settings),
+			bookId,
+			chapter,
+			anchorVerse: 1,
+			anchorOffset: 0,
+			side: this.settings.lastSidebarState?.side || 'right',
+		});
+		await this.createSidebar(state, false);
+	}
+
+	private async createSidebar(state: ScriptureSidebarState, split: boolean): Promise<void> {
+		const leaf = state.side === 'left'
+			? this.app.workspace.getLeftLeaf(split)
+			: this.app.workspace.getRightLeaf(split);
+		if (!leaf) {
+			new Notice('Unable to create Scripture sidebar');
+			return;
+		}
+		await leaf.setViewState({ type: SCRIPTURE_SIDEBAR_VIEW_TYPE, active: true, state: { ...state } });
+		if (leaf.view instanceof ScriptureSidebarView) {
+			this.lastUsedSidebarLeaf = leaf;
+			leaf.view.activate();
+		}
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	private getActiveBibleNoteReference(): { bookId: string; chapter: number } | null {
+		const file = this.app.workspace.getActiveFile();
+		return file ? getBibleNoteChapterReference(this.app, this.settings, file) : null;
+	}
+
+	private refreshSidebarSides(): void {
+		for (const { leaf, view } of this.getSidebarViews()) {
+			const side = this.getLeafSide(leaf);
+			if (side) view.setSide(side);
+		}
+	}
+
+	private getLeafSide(leaf: WorkspaceLeaf): ScriptureSidebarSide | null {
+		let item: unknown = leaf.parent;
+		while (item && typeof item === 'object') {
+			if (item === this.app.workspace.leftSplit) return 'left';
+			if (item === this.app.workspace.rightSplit) return 'right';
+			item = (item as { parent?: unknown }).parent;
+		}
+		return null;
 	}
 
 	private insertScriptureCallout(editor: Editor, reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean, referenceFormat?: ReferenceFormat, insertionTarget?: InsertionTarget) {
 		// If includeVerseNumbers not provided, fall back to global setting
 		const includeNumbers = typeof includeVerseNumbers === 'boolean' ? includeVerseNumbers : !!this.settings.includeVerseNumbersOnInsert;
+		this.notifyLinkFallback(verses, translation);
 		this.calloutFormatter.insertScriptureCallout(editor, reference, verses, translation, includeNumbers, referenceFormat, insertionTarget);
 	}
 
@@ -388,7 +576,15 @@ export default class Scripture extends Plugin {
 	}
 
 	private insertScriptureLink(editor: Editor, reference: string, verses: BibleVerse[], translation: string, referenceFormat?: ReferenceFormat, insertionTarget?: InsertionTarget) {
+		this.notifyLinkFallback(verses, translation);
 		this.calloutFormatter.insertScriptureLink(editor, reference, verses, translation, referenceFormat, insertionTarget);
+	}
+
+	private notifyLinkFallback(verses: BibleVerse[], translation: string): void {
+		const firstVerse = verses[0];
+		if (!firstVerse) return;
+		const resolution = resolveScriptureLink(this.settings, translation, firstVerse.book, firstVerse.chapter, firstVerse.verse);
+		if (resolution.warning) new Notice(resolution.warning);
 	}
 
 	private getInsertionTarget(editor: Editor, selectedText: string): InsertionTarget {
@@ -419,19 +615,16 @@ export default class Scripture extends Plugin {
 			const matches = Array.from(matchGenerator);
 			
 			// If we found a valid reference, extract the reference and translation
-			if (matches && matches.length > 0 && (matches[0] as any).ref) {
-				const { reference, translation } = this.parseReferenceAndTranslation(trimmedText);
-				console.log('Found Bible reference in selection:', reference, translation ? `(${translation})` : '');
-				return { reference, translation };
-			}
-		} catch (error) {
-			// If there's any error with detection, just return empty
-			console.log('No Bible reference detected in selection');
+				if (matches.length > 0) {
+					const { reference, translation } = this.parseReferenceAndTranslation(trimmedText);
+					return { reference, translation };
+				}
+			} catch {
+				return { reference: '', translation: null };
 		}
 
 		if (this.isChapterVerseOnlyReference(trimmedText)) {
 			const reference = selectedText.startsWith(' ') ? selectedText : ` ${trimmedText}`;
-			console.log('Found chapter and verse selection:', reference);
 			return { reference, translation: null, cursorPosition: 'start' };
 		}
 
@@ -453,8 +646,8 @@ export default class Scripture extends Plugin {
 
 		for (const pattern of translationPatterns) {
 			const match = text.match(pattern);
-			if (match) {
-				const possibleTranslation = match[1];
+				const possibleTranslation = match?.[1];
+				if (possibleTranslation) {
 				
 				// Check if this translation exists in our configured translations
 				const foundTranslation = this.settings.translations.find(t => 
@@ -479,7 +672,8 @@ export default class Scripture extends Plugin {
 
 	private normalizeDirectory(path: string): string {
 		if (!path) return '';
-		return path.endsWith('/') ? path : `${path}/`;
+		const normalized = normalizePath(path);
+		return normalized.endsWith('/') ? normalized : `${normalized}/`;
 	}
 
 	private resolveTranslationForInput(requestedTranslation: string | null): BibleTranslation | null {
@@ -529,9 +723,10 @@ export default class Scripture extends Plugin {
 		if (!translation) return null;
 
 		const matches = Array.from(detectReferences(reference));
-		if (!matches.length || !(matches[0] as any).ref) return null;
+		const firstMatch = matches[0];
+		if (!firstMatch) return null;
 
-		const ref = (matches[0] as any).ref;
+		const ref = firstMatch.ref;
 		const chapter = ref.start_chapter;
 		const verse = ref.start_verse;
 
@@ -557,7 +752,7 @@ export default class Scripture extends Plugin {
 		const resolved = await this.resolveScriptureNote(input);
 		if (!resolved) {
 			if (!options?.silent) {
-				new Notice('Could not resolve scripture note from input');
+				new Notice('Could not resolve Scripture note from input');
 			}
 			return false;
 		}
@@ -593,17 +788,9 @@ export default class Scripture extends Plugin {
 			openScriptureNote: this.openScriptureNote.bind(this)
 		};
 
-		// Expose API on the global app object
-		if (!(this.app as any).plugins) {
-			(this.app as any).plugins = {};
-		}
-		if (!(this.app as any).plugins.plugins) {
-			(this.app as any).plugins.plugins = {};
-		}
-		if (!(this.app as any).plugins.plugins['scripture']) {
-			(this.app as any).plugins.plugins['scripture'] = this;
-		}
-		(this.app as any).plugins.plugins['scripture'].api = this.api;
+		const pluginRegistry = (this.app as AppWithPlugins).plugins.plugins;
+		pluginRegistry.scripture ??= this;
+		pluginRegistry.scripture.api = this.api;
 
 		this.registerObsidianProtocolHandler('open-scripture-note', async (params: Record<string, string>) => {
 			const input = params.reference || params.ref || params.q || '';
@@ -679,23 +866,8 @@ export default class Scripture extends Plugin {
 			reference = `${normalizedBook} ${chapter}`;
 		}
 
-		// If translation has notes available, create a link to the chapter note
-		if (translationSettings.availableAsNotes && translationSettings.notesDirectory) {
-			const notesDir = translationSettings.notesDirectory.endsWith('/') 
-				? translationSettings.notesDirectory 
-				: translationSettings.notesDirectory + '/';
-			
-			if (verse) {
-				// Link to chapter with verse anchor
-				return `[[${notesDir}${normalizedBook} ${chapter}#${verse}]]`;
-			} else {
-				// Link to chapter
-				return `[[${notesDir}${normalizedBook} ${chapter}]]`;
-			}
-		} else {
-			// Return formatted reference without link if no notes available
-			return reference;
-		}
+		const resolution = resolveScriptureLink(this.settings, translationSettings.name, normalizedBook, chapter, verse);
+		return resolution.target ? `[[${resolution.target}]]` : reference;
 	}
 
 	/**
@@ -725,37 +897,4 @@ export default class Scripture extends Plugin {
 		return bookName.trim();
 	}
 
-	private migrateReferenceFormatSettings(loadedSettings: any): void {
-		const legacyReferenceFormat = loadedSettings?.referenceFormat as ReferenceFormat | undefined;
-		if (legacyReferenceFormat && !loadedSettings.calloutReferenceFormat) {
-			this.settings.calloutReferenceFormat = legacyReferenceFormat;
-		}
-	}
-
-	private async migrateOldSettings() {
-		// Check if we have old single-translation settings to migrate
-		const oldSettings = this.settings as any;
-		
-		if (oldSettings.bibleDataPath && this.settings.translations.length === 0) {
-			console.log('Migrating old Bible Reference settings...');
-			
-			// Create a translation entry from old settings
-			const translation = {
-				name: oldSettings.defaultVersion || 'Default',
-				fullName: oldSettings.defaultVersion || 'Default',
-				filePath: oldSettings.bibleDataPath
-			};
-			
-			this.settings.translations = [translation];
-			this.settings.defaultTranslation = translation.name;
-			
-			// Clean up old properties
-			delete oldSettings.bibleDataPath;
-			delete oldSettings.defaultVersion;
-			
-			await this.saveSettings();
-			
-			new Notice('Scripture settings migrated to new format. Please verify translations in settings.');
-		}
-	}
 }

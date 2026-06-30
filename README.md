@@ -1,93 +1,83 @@
-# Scripture Plugin for Obsidian
+# Scripture for Obsidian
 
-A comprehensive scripture study plugin for Obsidian that provides reference insertion, translation management, and Bible note formatting capabilities.
+Scripture is an Obsidian plugin for inserting Bible passages, opening chapter notes, switching between translations, and rendering reference lists from local Bible data.
+
+The plugin works locally. It does not make network requests, collect analytics, or transmit vault contents.
 
 ## Features
 
-### 📖 Scripture Reference Insertion
-- **Quick Reference Modal**: Insert scripture references with a modal interface
-- **Smart Text Detection**: Automatically detects Bible references in selected text
-- **Multiple Translations**: Support for multiple Bible translations with easy switching
-- **Formatted Callouts**: Creates beautifully formatted scripture callouts with proper formatting
-
-### 🔄 Translation Management  
-- **Multiple Translation Support**: Configure and manage multiple Bible translations
-- **Translation Validation**: Built-in validation to ensure Bible data files are properly formatted
-- **Default Translation Setting**: Set your preferred default translation
-- **Translation-Specific Linking**: Choose linking strategies for different translations
-
-### 📝 Bible Note Integration
-- **Chapter Navigation**: Navigate between the same chapter in different translations
-- **Verse Number Display**: Control verse number visibility and display modes
-- **Bible Note Detection**: Automatically applies styling to Bible chapter notes in your vault
-- **Customizable Display**: Toggle between showing all verse numbers, first only, or none
-
-### 📋 Scripture List Rendering
-- **Code Block Table Rendering**: Render `scriptureList` code blocks as grouped scripture tables
-- **Row Highlighting**: Prefix a line with `- ` (or `* `) to highlight that rendered row
-
-### 🎨 Formatting Options
-- **Verse Number Control**: Include, exclude, or show all but first verse numbers
-- **Translation Display**: Choose when to show translation names in callouts
-- **Callout Folding**: Configure whether scripture callouts are foldable
-- **Hidden Links**: Add individual verse links for multi-verse passages
-- **Linking Strategies**: Link to default translation or verse-specific translation
-
-## Commands
-
-- **Insert Scripture Reference** (`insert-scripture-reference`): Open the reference insertion modal
-- **Open Scripture Note** (`open-scripture-note`): Quick-switcher style opener for scripture chapter notes
-- **Open Chapter in Other Translation** (`open-chapter-in-translation`): Navigate between translations (available when Bible chapter note is open)  
-- **Toggle Verse Numbers** (`toggle-verse-numbers`): Toggle verse number visibility
-- **Show First Verse Only** (`show-first-verse-only`): Display first verse numbers only
-- **Show All Verse Numbers** (`show-all-verse-numbers`): Display all verse numbers
+- Insert a passage as a Scripture callout or plain text, with a live preview.
+- Insert only a linked scripture reference.
+- Configure multiple local Bible translations and choose the default translation.
+- Read local translations in one or more independently navigable Scripture sidebars.
+- Open a scripture chapter note from typed, selected, or clipboard text.
+- Switch an open chapter note to the corresponding chapter in another translation.
+- Control verse-number display and translation-aware tab titles for Bible notes.
+- Render interactive `scriptureList` code blocks with folding, highlighting, editing, pasting, and copyable callouts.
+- Choose full book names, standard abbreviations, traditional abbreviations, or chapter-and-verse-only display.
 
 ## Installation
 
-### Manual Installation
-1. Download the latest release from the [releases page](https://github.com/yourusername/obsidian-scripture/releases)
-2. Extract the files to your vault's `.obsidian/plugins/scripture/` directory
-3. Reload Obsidian and enable the Scripture plugin in settings
+### From a release
 
-### For Development
-1. Clone this repository to your vault's `.obsidian/plugins/` directory
-2. Run `npm install` to install dependencies
-3. Run `npm run dev` for development or `npm run build` for production
-4. Reload Obsidian and enable the plugin
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/der-bingle/obsidian-scripture/releases/latest).
+2. Place the files in `<vault>/.obsidian/plugins/obsidian-scripture/`.
+3. Reload Obsidian and enable **Scripture** under **Settings → Community plugins**.
+
+### Development
+
+```sh
+npm install
+npm run dev
+```
+
+The watch build writes `main.js` at the repository root. Reload Obsidian after rebuilding the plugin.
+
+Useful checks:
+
+```sh
+npm run lint
+npm run test
+npm run build
+npm run check
+```
 
 ## Configuration
 
-### Adding Bible Translations
-1. Go to Settings → Scripture → Bible Translations
-2. Click "Add Translation"
-3. Configure:
-   - **Translation Name**: Short name (e.g., ESV, NIV)
-   - **Full Name**: Complete name (e.g., English Standard Version)  
-   - **File Path**: Path to your Bible JSON data file
-   - **Available as Notes**: Check if you have Bible chapter notes in your vault
-   - **Notes Directory**: Directory containing your Bible chapter notes
+Open **Settings → Scripture** to add one or more translations. Each translation needs:
 
-### Bible Data Format
-Bible data files should be in JSON format with the following structure:
+- A short name such as `CSB` or `NLT`.
+- A full display name.
+- The vault-relative path to its Bible JSON file.
+- Optionally, a vault-relative directory containing its chapter notes.
+
+Translation data uses this shape:
 
 ```json
 {
-  "translation": "ESV",
+  "translation": "CSB",
   "books": [
     {
-      "id": "GEN",
-      "title": "Genesis",
+      "id": "JHN",
+      "title": "John",
+      "bookNumber": 43,
+      "testament": "New Testament",
+      "abbreviations": ["Jn", "Jhn"],
       "chapters": [
         {
-          "chapter": 1,
+          "id": "JHN.003",
+          "book": "John",
+          "chapter": 3,
+          "verseCount": 36,
+          "wordCount": 0,
           "verses": [
             {
-              "id": "GEN.1.1",
-              "book": "Genesis",
-              "chapter": 1,
-              "verse": 1,
-              "content": ["In the beginning, God created the heavens and the earth."],
-              "newParagraph": true,
+              "id": "JHN.3.16",
+              "book": "John",
+              "chapter": 3,
+              "verse": 16,
+              "content": ["For God loved the world in this way…"],
+              "newParagraph": false,
               "poetry": false
             }
           ]
@@ -98,63 +88,51 @@ Bible data files should be in JSON format with the following structure:
 }
 ```
 
-## Public API
+Bible chapter notes are recognized by their configured directory. Translation switching uses a frontmatter `id` such as `JHN.003` to locate the same chapter in another translation.
 
-The plugin exposes a public API for other plugins to use:
+### Scripture sidebar
 
-```javascript
-const scriptureAPI = app.plugins.plugins['scripture'].api;
+Choose a default sidebar translation under **Scripture sidebar**. The ribbon and **Open sidebar** command reveal the most recently used sidebar. **Open new sidebar** clones its translation, chapter, and reading position into another split so two translations can be compared directly. Sidebars retain independent state and do not automatically follow open notes.
 
-if (scriptureAPI) {
-  // Get primary translation object
-  const primary = scriptureAPI.getPrimaryTranslation();
-  
-  // Get all available translations
-  const translations = scriptureAPI.getAvailableTranslations();
-  
-  // Get specific translation settings  
-  const esv = scriptureAPI.getTranslationSettings('ESV');
-  
-  // Format verse references as Obsidian links
-  const link = scriptureAPI.formatVerseReference("John", 3, 16, "ESV");
-  
-  // Parse scripture references from text
-  const parsed = scriptureAPI.parseScriptureReference("John 3:16 ESV");
+Use **Open current chapter in sidebar** from a recognized chapter note to move the most recently used sidebar to that chapter. If none is open, the command creates one using the configured sidebar default.
 
-  // Resolve scripture note target without opening
-  const target = await scriptureAPI.resolveScriptureNote("John 3:16 NLT");
+### Scripture links and consolidated notes
 
-  // Open scripture note directly (no modal interaction)
-  await scriptureAPI.openScriptureNote("John 3:16 NLT");
-  
-  // Normalize book names
-  const normalized = scriptureAPI.normalizeBookName("1 Cor");
-}
-```
+The **Scripture links** settings choose both the note translation and path style used by generated links:
 
-### Obsidian URI protocol integration
+- **Configured notes path** produces links such as `[[Bible/James 5#19]]` from the selected translation's notes directory.
+- **Note basename only** produces `[[James 5#19]]`. Use this only when chapter-note basenames are unique in the vault; otherwise Obsidian may resolve the link ambiguously.
 
-The plugin also registers an Obsidian protocol handler:
+To retain a single canonical note set while reading other translations from JSON:
 
-`obsidian://scripture/open-scripture-note?reference=John%203%3A16%20NLT`
+1. Move the retained chapter notes manually to their shared directory, such as `Bible/`.
+2. Set that translation's Scripture notes directory to `Bible`.
+3. Disable **Available as Scripture notes in the vault** for JSON-only comparison translations.
+4. Select **Note basename only** if unqualified links are desired and note names are unique.
 
-Accepted query params:
-- `reference` (or `ref` / `q`): scripture input text
-- `newLeaf` (`true`/`1`): open in a new leaf
+The plugin does not move or rewrite existing notes or Markdown automatically.
 
-## Styling and Customization
+## Commands
 
-The plugin includes comprehensive CSS styling for Bible notes with Style Settings integration. Customize:
+Command IDs remain stable for hotkeys and integrations.
 
-- Verse number appearance and positioning
-- Typography and font settings  
-- Text justification
-- Heading alignment
-- Margin and spacing
+| Command | ID |
+| --- | --- |
+| Insert | `insert-scripture` |
+| Insert link | `insert-scripture-link` |
+| Open note | `open-scripture-note` |
+| Open from clipboard | `open-scripture-from-clipboard` |
+| Open chapter in other translation | `open-chapter-in-translation` |
+| Open sidebar | `open-scripture-sidebar` |
+| Open new sidebar | `open-new-scripture-sidebar` |
+| Open current chapter in sidebar | `open-current-chapter-in-scripture-sidebar` |
+| Toggle verse numbers | `toggle-verse-numbers` |
+| Show first verse only | `show-first-verse-only` |
+| Show all verse numbers | `show-all-verse-numbers` |
 
-### Highlighting in `scriptureList` code blocks
+## Scripture lists
 
-Use the `scriptureList` code block with one reference per line:
+Use one reference per line:
 
 ````markdown
 ```scriptureList
@@ -164,22 +142,51 @@ John 3:16
 ```
 ````
 
-Lines prefixed with `- ` or `* ` are rendered as highlighted rows in the output table.
+Prefixing a line with `- ` or `* ` highlights that row. The rendered list can edit its source, append a blank entry, paste references from the clipboard, and copy a passage as a callout. Optional settings can normalize and reorder the source.
 
-## License
+## Public API
 
-MIT License - see [LICENSE](LICENSE) file for details.
+The compatibility alias remains available to other plugins:
 
-## Support
+```js
+const scripture = app.plugins.plugins['scripture']?.api;
 
-If you find this plugin helpful, consider supporting its development:
-- [Buy Me a Coffee](https://buymeacoffee.com/yourusername)
-- [GitHub Sponsors](https://github.com/sponsors/yourusername)
+const primary = scripture?.getPrimaryTranslation();
+const translations = scripture?.getAvailableTranslations();
+const csb = scripture?.getTranslationSettings('CSB');
+const link = scripture?.formatVerseReference('John', 3, 16, 'CSB');
+const parsed = scripture?.parseScriptureReference('John 3:16 CSB');
+const normalized = scripture?.normalizeBookName('1 Cor');
+const target = await scripture?.resolveScriptureNote('John 3:16 NLT');
+await scripture?.openScriptureNote('John 3:16 NLT');
+```
 
-## Contributing
+The canonical plugin instance is registered under `obsidian-scripture`; the shorter `scripture` registry entry is retained for compatibility.
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests to the main repository.
+### Obsidian URI
 
-## Changelog
+Open a scripture note through:
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
+```text
+obsidian://scripture/open-scripture-note?reference=John%203%3A16%20NLT
+```
+
+Accepted parameters:
+
+- `reference`, `ref`, or `q`: scripture input.
+- `newLeaf=true` or `newLeaf=1`: open in a new leaf.
+
+## Privacy and permissions
+
+- Translation JSON and chapter notes are read from the vault.
+- `scriptureList` source can be updated when its normalization or edit actions are used.
+- Clipboard access occurs only when the user invokes a paste, copy, or clipboard-opening action.
+- No account, payment, telemetry, or external service is required.
+
+## Contributing and releases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development expectations. Version history and release assets are available on [GitHub Releases](https://github.com/der-bingle/obsidian-scripture/releases).
+
+## Support and license
+
+Scripture is licensed under the [MIT License](LICENSE). Development can be supported through [Buy Me a Coffee](https://buymeacoffee.com/derbingle).

@@ -1,37 +1,38 @@
-import { Notice } from 'obsidian';
+import { App, normalizePath } from 'obsidian';
 import type { BibleData, BibleTranslation } from './types';
+import { isBibleData, validateBibleData } from './bible-data-validation';
 
 export class BibleDataLoader {
-	private app: any;
+	private app: App;
 	private loadedTranslations: Map<string, BibleData> = new Map();
 
-	constructor(app: any) {
+	constructor(app: App) {
 		this.app = app;
 	}
 
 	async loadTranslation(translation: BibleTranslation): Promise<BibleData | null> {
 		// Check if already loaded and cached
-		if (this.loadedTranslations.has(translation.name)) {
-			return this.loadedTranslations.get(translation.name)!;
-		}
+		const cached = this.loadedTranslations.get(translation.name);
+		if (cached) return cached;
 
 		try {
-			const adapter = this.app.vault.adapter;
+			const filePath = normalizePath(translation.filePath);
+			const file = this.app.vault.getFileByPath(filePath);
 
-			if (await adapter.exists(translation.filePath)) {
-				const data = await adapter.read(translation.filePath);
-				const bibleData: BibleData = JSON.parse(data);
+			if (file) {
+				const data = await this.app.vault.cachedRead(file);
+				const bibleData: unknown = JSON.parse(data);
 
 				// Validate data structure
-				if (!this.validateBibleData(bibleData)) {
-					console.error(`Invalid Bible data format: ${translation.filePath}`);
+				if (!isBibleData(bibleData)) {
+					const validation = validateBibleData(bibleData);
+					console.error(`Invalid Bible data format: ${translation.filePath}: ${validation.errorMessage || 'Unknown error'}`);
 					return null;
 				}
 
 				// Cache the loaded data
 				this.loadedTranslations.set(translation.name, bibleData);
 
-				console.log(`Loaded ${translation.name}: ${bibleData.translation} with ${bibleData.books?.length} books`);
 				return bibleData;
 			} else {
 				console.error(`Bible file not found: ${translation.filePath}`);
@@ -45,17 +46,19 @@ export class BibleDataLoader {
 
 	async validateTranslation(translation: BibleTranslation): Promise<{ isValid: boolean; errorMessage?: string }> {
 		try {
-			const adapter = this.app.vault.adapter;
+			const filePath = normalizePath(translation.filePath);
+			const file = this.app.vault.getFileByPath(filePath);
 
-			if (!(await adapter.exists(translation.filePath))) {
+			if (!file) {
 				return { isValid: false, errorMessage: 'File not found' };
 			}
 
-			const data = await adapter.read(translation.filePath);
-			const bibleData: BibleData = JSON.parse(data);
+			const data = await this.app.vault.cachedRead(file);
+			const bibleData: unknown = JSON.parse(data);
 
-			if (!this.validateBibleData(bibleData)) {
-				return { isValid: false, errorMessage: 'Invalid Bible data format' };
+			const validation = validateBibleData(bibleData);
+			if (!validation.isValid) {
+				return { isValid: false, errorMessage: validation.errorMessage || 'Invalid Bible data format' };
 			}
 
 			return { isValid: true };
@@ -79,27 +82,4 @@ export class BibleDataLoader {
 		}
 	}
 
-	private validateBibleData(data: any): data is BibleData {
-		if (!data || typeof data !== 'object') {
-			return false;
-		}
-
-		if (!data.translation || typeof data.translation !== 'string') {
-			return false;
-		}
-
-		if (!Array.isArray(data.books)) {
-			return false;
-		}
-
-		// Basic validation of first book structure
-		if (data.books.length > 0) {
-			const firstBook = data.books[0];
-			if (!firstBook.id || !firstBook.title || !Array.isArray(firstBook.chapters)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
 }

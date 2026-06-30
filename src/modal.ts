@@ -1,6 +1,7 @@
 import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent, setIcon } from 'obsidian';
-import { detectReferences, PassageReference } from 'scripture-references';
-import type { BibleData, BibleVerse, OnSubmitCallback, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
+import { detectReferences } from 'scripture-references';
+import type { PassageReference } from 'scripture-references';
+import type { BibleVerse, OnSubmitCallback, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 
 export class ScriptureModal extends Modal {
@@ -8,11 +9,11 @@ export class ScriptureModal extends Modal {
 	private selectedTranslation: string;
 	private dataLoader: BibleDataLoader;
 	private onSubmit: OnSubmitCallback;
-	private inputEl: HTMLInputElement;
+	private inputEl!: HTMLInputElement;
 	private translationButtons: ButtonComponent[] = [];
-	private previewEl: HTMLElement;
+	private previewEl!: HTMLElement;
 	private initialReference: string;
-	private includeVerseNumbersToggle: ToggleComponent;
+	private includeVerseNumbersToggle!: ToggleComponent;
 	private includeVerseNumbersValue: boolean;
 	private showVerseNumbersToggle: boolean;
 	private showOutputFormatSelector: boolean;
@@ -23,10 +24,10 @@ export class ScriptureModal extends Modal {
 
 	// defaultIncludeVerseNumbers is the default value loaded from settings
 	// showVerseNumbersToggle determines whether to show the toggle in the UI
-	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultInsertScriptureFormat: InsertScriptureFormat, defaultReferenceFormat: ReferenceFormat, showOutputFormatSelector: boolean = true, showVerseNumbersToggle: boolean = true, initialCursorPosition: 'start' | 'end' = 'end', title: string = 'Insert Scripture') {
+	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultInsertScriptureFormat: InsertScriptureFormat, defaultReferenceFormat: ReferenceFormat, showOutputFormatSelector = true, showVerseNumbersToggle = true, initialCursorPosition: 'start' | 'end' = 'end', title = 'Insert scripture') {
 		super(app);
 		this.translations = translations;
-		this.selectedTranslation = defaultTranslation || (translations.length > 0 ? translations[0].name : '');
+		this.selectedTranslation = defaultTranslation || translations[0]?.name || '';
 		this.dataLoader = dataLoader;
 		this.initialReference = initialReference || '';
 		this.initialCursorPosition = initialCursorPosition;
@@ -41,7 +42,7 @@ export class ScriptureModal extends Modal {
 
 	onOpen(): void {
 		const { contentEl } = this;
-		contentEl.createEl('h2', { text: this.title });
+		this.setTitle(this.title);
 
 		if (this.translations.length === 0) {
 			contentEl.createEl('p', {
@@ -67,7 +68,7 @@ export class ScriptureModal extends Modal {
 		this.createButtons(contentEl);
 
 		// Focus input when modal opens
-		setTimeout(() => {
+		window.setTimeout(() => {
 			this.inputEl.focus();
 			if (this.initialReference) {
 				const cursorPosition = this.initialCursorPosition === 'start' ? 0 : this.inputEl.value.length;
@@ -79,61 +80,39 @@ export class ScriptureModal extends Modal {
 	private createReferenceInput(container: HTMLElement): void {
 		const inputContainer = container.createDiv('scripture-input');
 		inputContainer.createEl('label', { text: 'Scripture reference' });
-		inputContainer.style.position = 'relative';
 
 		this.inputEl = inputContainer.createEl('input', {
 			type: 'text',
 			placeholder: 'Enter reference (e.g., John 3:16, Psalm 23:1-3)',
 		});
 
-		this.inputEl.style.width = '100%';
-		this.inputEl.style.padding = '8px';
-		this.inputEl.style.paddingRight = '40px';
-		this.inputEl.style.margin = '5px 0 15px 0';
+		this.inputEl.addClass('scripture-reference-input');
 
 		const pasteButton = inputContainer.createEl('button', {
 			attr: {
 				type: 'button',
 				'aria-label': 'Paste from clipboard',
 				title: 'Paste from clipboard'
-			}
+			},
+			cls: 'scripture-input-paste-button'
 		});
-		pasteButton.style.position = 'absolute';
-		pasteButton.style.right = '6px';
-		pasteButton.style.top = '35px';
-		pasteButton.style.padding = '4px 6px';
-		pasteButton.style.border = 'none';
-		pasteButton.style.background = 'transparent';
-		pasteButton.style.cursor = 'pointer';
 		setIcon(pasteButton, 'clipboard-paste');
 
-		pasteButton.addEventListener('click', async (evt) => {
+		pasteButton.addEventListener('click', (evt) => {
 			evt.preventDefault();
-			try {
-				const clipText = await navigator.clipboard.readText();
-				if (!clipText?.trim()) {
-					new Notice('Clipboard is empty');
-					return;
-				}
-
-				this.inputEl.value = clipText.trim();
-				this.updatePreview();
-			} catch (error) {
-				console.error('Clipboard read failed:', error);
-				new Notice('Unable to read clipboard in this environment');
-			}
+			void this.pasteReferenceFromClipboard();
 		});
 
 		// Set initial value if we have a pre-populated reference
 		if (this.initialReference) {
 			this.inputEl.value = this.initialReference;
 			// Trigger preview update for pre-populated reference
-			setTimeout(() => this.updatePreview(), 100);
+			window.setTimeout(() => void this.updatePreview(), 100);
 		}
 
 		// Update preview when typing
 		this.inputEl.addEventListener('input', () => {
-			this.updatePreview();
+			void this.updatePreview();
 		});
 	}
 
@@ -146,10 +125,6 @@ export class ScriptureModal extends Modal {
 		selectorContainer.createEl('label', { text: 'Pick translation' });
 
 		const buttonContainer = selectorContainer.createDiv('bible-translation-buttons');
-		buttonContainer.style.display = 'flex';
-		buttonContainer.style.gap = '8px';
-		buttonContainer.style.margin = '5px 0 15px 0';
-		buttonContainer.style.flexWrap = 'wrap';
 
 		this.translations.forEach(translation => {
 			const button = new ButtonComponent(buttonContainer);
@@ -157,7 +132,7 @@ export class ScriptureModal extends Modal {
 				.setButtonText(translation.name)
 				.onClick(() => {
 					this.selectTranslation(translation.name);
-					this.updatePreview();
+					void this.updatePreview();
 				});
 
 			this.translationButtons.push(button);
@@ -175,18 +150,7 @@ export class ScriptureModal extends Modal {
 			cls: 'bible-preview-content'
 		});
 
-		this.previewEl.style.border = '1px solid var(--background-modifier-border)';
-		this.previewEl.style.borderRadius = '4px';
-		this.previewEl.style.padding = '12px';
-		this.previewEl.style.margin = '5px 0 15px 0';
-		this.previewEl.style.minHeight = '100px';
-		this.previewEl.style.maxHeight = '300px';
-		this.previewEl.style.overflowY = 'auto';
-		this.previewEl.style.fontSize = '0.9em';
-		this.previewEl.style.lineHeight = '1.4';
-		this.previewEl.style.whiteSpace = 'pre-wrap'; // Preserves line breaks
-
-		this.previewEl.innerHTML = 'Enter a reference to see preview...';
+		this.previewEl.setText('Enter a reference to see preview...');
 	}
 
 	private createOutputFormatSelector(container: HTMLElement): void {
@@ -197,14 +161,14 @@ export class ScriptureModal extends Modal {
 				.addOption('scripture-callout', 'Scripture callout')
 				.addOption('plain-text', 'Plain text')
 				.setValue(this.insertScriptureFormat)
-				.onChange((value: InsertScriptureFormat) => {
-					this.insertScriptureFormat = value;
+				.onChange((value) => {
+					this.insertScriptureFormat = value as InsertScriptureFormat;
 				}));
 	}
 
 	private createIncludeVerseNumbersToggle(container: HTMLElement): void {
 		const toggleSetting = container.createDiv('include-verse-numbers');
-		const setting = new Setting(toggleSetting)
+		new Setting(toggleSetting)
 			.setName('Include verse numbers')
 			.setDesc('Include verse numbers when inserting multiple verses')
 			.addToggle(toggle => {
@@ -226,17 +190,13 @@ export class ScriptureModal extends Modal {
 				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
 				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
 				.setValue(this.referenceFormat)
-				.onChange((value: ReferenceFormat) => {
-					this.referenceFormat = value;
+				.onChange((value) => {
+					this.referenceFormat = value as ReferenceFormat;
 				}));
 	}
 
 	private createButtons(container: HTMLElement): void {
-		const buttonContainer = container.createDiv('scripture-buttons');
-		buttonContainer.style.display = 'flex';
-		buttonContainer.style.justifyContent = 'flex-end';
-		buttonContainer.style.gap = '10px';
-		buttonContainer.style.marginTop = '20px';
+		const buttonContainer = container.createDiv('scripture-modal-button-row');
 
 		const cancelButton = new ButtonComponent(buttonContainer);
 		cancelButton
@@ -267,7 +227,7 @@ export class ScriptureModal extends Modal {
 	private updateTranslationButtons(): void {
 		this.translationButtons.forEach((button, index) => {
 			const translation = this.translations[index];
-			if (translation.name === this.selectedTranslation) {
+			if (translation?.name === this.selectedTranslation) {
 				button.buttonEl.addClass('mod-cta');
 			} else {
 				button.buttonEl.removeClass('mod-cta');
@@ -279,12 +239,12 @@ export class ScriptureModal extends Modal {
 		const reference = this.inputEl.value.trim();
 
 		if (!reference) {
-			this.previewEl.innerHTML = 'Enter a reference to see preview...';
+			this.previewEl.setText('Enter a reference to see preview...');
 			return;
 		}
 
 		if (!this.selectedTranslation) {
-			this.previewEl.innerHTML = 'No translation selected';
+			this.previewEl.setText('No translation selected');
 			return;
 		}
 
@@ -292,7 +252,7 @@ export class ScriptureModal extends Modal {
 			const verses = await this.parseAndLookupReference(reference);
 
 			if (verses.length === 0) {
-				this.previewEl.innerHTML = 'Reference not found or invalid format';
+				this.previewEl.setText('Reference not found or invalid format');
 				return;
 			}
 
@@ -311,11 +271,10 @@ export class ScriptureModal extends Modal {
 				return `${verseNum} ${content}`;
 			}).join(' ');
 
-			// Use innerHTML to render <br> tags for line breaks
-			this.previewEl.innerHTML = formattedText.replace(/\n/g, '<br>');
+			this.previewEl.setText(formattedText);
 
 		} catch (error) {
-			this.previewEl.innerHTML = 'Error parsing reference';
+			this.previewEl.setText('Error parsing reference');
 			console.error('Preview error:', error);
 		}
 	}
@@ -352,32 +311,14 @@ export class ScriptureModal extends Modal {
 
 	private async parseAndLookupReference(reference: string): Promise<BibleVerse[]> {
 		try {
-			console.log('Input reference:', reference);
+			const matches = Array.from(detectReferences(reference));
+			const firstMatch = matches[0];
 
-			const matchGenerator = detectReferences(reference);
-			const matches = Array.from(matchGenerator);
-			console.log('Matches array:', matches);
-
-			if (!matches || matches.length === 0) {
-				console.log('No matches found');
+			if (!firstMatch) {
 				return [];
 			}
 
-			console.log('First match:', matches[0]);
-
-			// Check if we have a valid match
-			if (!matches[0] || !(matches[0] as any).ref) {
-				console.log('Invalid match structure');
-				return [];
-			}
-
-			// The structure is: match.ref contains the PassageReference
-			const match = matches[0] as any;
-			const passageRef = match.ref as PassageReference;
-
-			console.log('PassageReference object:', passageRef);
-
-			return await this.lookupVerses(passageRef);
+			return await this.lookupVerses(firstMatch.ref);
 
 		} catch (error) {
 			console.error('Error in parseAndLookupReference:', error);
@@ -397,16 +338,6 @@ export class ScriptureModal extends Modal {
 			throw new Error(`Failed to load translation: ${this.selectedTranslation}`);
 		}
 
-		console.log('Bible data structure:', {
-			translation: bibleData.translation,
-			booksCount: bibleData.books?.length
-		});
-
-		if (!bibleData.books || !Array.isArray(bibleData.books)) {
-			console.error('bibleData.books is not an array!');
-			return [];
-		}
-
 		const verses: BibleVerse[] = [];
 
 		// Convert book ID to our format (e.g., 'jhn' -> 'JHN')
@@ -416,34 +347,24 @@ export class ScriptureModal extends Modal {
 		const startVerse = ref.start_verse;
 		const isChapterReference = ref.type === 'chapter';
 
-		console.log(`Looking up: ${bookCode} ${chapter}`);
-
 		// Find the book in the books array
 		const book = bibleData.books.find(b => b.id === bookCode);
 		if (!book) {
-			console.log(`Book not found: ${bookCode}`);
 			return [];
 		}
 
-		console.log(`Found book:`, book.title);
-
 		// Find the chapter
 		if (!book.chapters || !Array.isArray(book.chapters)) {
-			console.log(`Book has no chapters array`);
 			return [];
 		}
 
 		const chapterData = book.chapters.find(c => c.chapter === chapter);
 		if (!chapterData) {
-			console.log(`Chapter not found: ${chapter}`);
 			return [];
 		}
 
-		console.log(`Found chapter ${chapter}, verses:`, chapterData.verses?.length);
-
 		// Find the verses
 		if (!chapterData.verses || !Array.isArray(chapterData.verses)) {
-			console.log(`Chapter has no verses array`);
 			return [];
 		}
 
@@ -469,14 +390,26 @@ export class ScriptureModal extends Modal {
 					poetry: verseData.poetry
 				};
 				verses.push(bibleVerse);
-				console.log(`Found verse ${verseNum}:`, verseData.content[0]);
-			} else {
-				console.log(`Verse not found: ${verseNum}`);
 			}
 		}
 
-		console.log(`Total verses found: ${verses.length}`);
 		return verses;
+	}
+
+	private async pasteReferenceFromClipboard(): Promise<void> {
+		try {
+			const clipText = await navigator.clipboard.readText();
+			if (!clipText.trim()) {
+				new Notice('Clipboard is empty');
+				return;
+			}
+
+			this.inputEl.value = clipText.trim();
+			await this.updatePreview();
+		} catch (error) {
+			console.error('Clipboard read failed:', error);
+			new Notice('Unable to read clipboard in this environment');
+		}
 	}
 
 	onClose(): void {

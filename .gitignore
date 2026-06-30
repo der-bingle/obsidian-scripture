@@ -15,6 +15,13 @@ main.js
 # Exclude sourcemaps
 *.map
 
+# Graphify machine-local output
+graphify-out/cost.json
+graphify-out/**/manifest.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/cache/stat-index.json
+
 # obsidian
 data.json
 

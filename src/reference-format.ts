@@ -38,6 +38,7 @@ export function formatReferenceDisplay(
 
 	const firstVerse = verses[0];
 	const lastVerse = verses[verses.length - 1];
+	if (!firstVerse || !lastVerse) return '';
 	const chapter = firstVerse.chapter;
 	const includeTranslation = shouldIncludeTranslation(translation, defaultTranslation, translationDisplay);
 	const translationSuffix = includeTranslation ? `, ${translation}` : '';
@@ -105,7 +106,7 @@ function getEnglishAbbreviation(bookName: string): string | null {
 	return englishAbbrevMapCache[bookName] || null;
 }
 
-function buildEnglishAbbrevMap(source: any): Record<string, string> {
+function buildEnglishAbbrevMap(source: unknown): Record<string, string> {
 	const map: Record<string, string> = {};
 	if (!source) return map;
 
@@ -121,9 +122,10 @@ function buildEnglishAbbrevMap(source: any): Record<string, string> {
 				continue;
 			}
 			if (entry && typeof entry === 'object') {
-				const name = entry.name || entry.book || entry.title || entry.full || entry.long;
-				const abbrev = entry.abbrev || entry.abbreviation || entry.short;
-				if (name && abbrev) add(String(name), String(abbrev));
+				const candidate = entry as Record<string, unknown>;
+				const name = candidate.name || candidate.book || candidate.title || candidate.full || candidate.long;
+				const abbrev = candidate.abbrev || candidate.abbreviation || candidate.short;
+				if (typeof name === 'string' && typeof abbrev === 'string') add(name, abbrev);
 			}
 		}
 	}

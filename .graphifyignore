@@ -1,0 +1,11 @@
+.git/
+.idea/
+.vscode/
+node_modules/
+graphify-out/
+main.js
+*.map
+*.zip
+package-lock.json
+data.json
+.DS_Store

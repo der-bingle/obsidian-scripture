@@ -1,7 +1,8 @@
-import { Editor, EditorPosition } from 'obsidian';
+import type { Editor, EditorPosition } from 'obsidian';
 import { detectReferences } from 'scripture-references';
 import type { BibleVerse, ReferenceFormat, ScriptureSettings } from './types';
 import { formatReferenceDisplay } from './reference-format';
+import { resolveScriptureLink } from './scripture-link';
 
 export interface InsertionTarget {
 	from: EditorPosition;
@@ -29,22 +30,7 @@ export class CalloutFormatter {
 		// Format each verse according to settings
 		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
 
-		// Join verses while preserving paragraph breaks
-		let versesText = '';
-		for (let i = 0; i < formattedVerses.length; i++) {
-			if (i === 0) {
-				versesText = formattedVerses[i];
-			} else {
-				const startsNewParagraph = !!(verses[i].newParagraph);
-				if (startsNewParagraph) {
-					versesText += '\n\n' + formattedVerses[i];
-				} else {
-					versesText += ' ' + formattedVerses[i];
-				}
-			}
-		}
-
-		return versesText;
+		return this.joinFormattedVerses(verses, formattedVerses);
 	}
 
 	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): string {
@@ -54,24 +40,12 @@ export class CalloutFormatter {
 		const header = `> [!scripture]${foldingIndicator} ${formattedReference}`;
 		
 		// Format each verse according to settings
-	const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
+		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
 
 		// Join verses while preserving paragraph breaks.
 		// If a verse has `newParagraph === true`, insert a blank line before it;
 		// otherwise separate verses with a space to keep sentences flowing.
-		let versesText = '';
-		for (let i = 0; i < formattedVerses.length; i++) {
-			if (i === 0) {
-				versesText = formattedVerses[i];
-			} else {
-				const startsNewParagraph = !!(verses[i].newParagraph);
-				if (startsNewParagraph) {
-					versesText += '\n\n' + formattedVerses[i];
-				} else {
-					versesText += ' ' + formattedVerses[i];
-				}
-			}
-		}
+		const versesText = this.joinFormattedVerses(verses, formattedVerses);
 		
 		// Split into lines and prefix each with "> " for callout formatting
 		const calloutLines = this.formatAsCalloutLines(versesText);
@@ -94,19 +68,14 @@ export class CalloutFormatter {
 			return null;
 		}
 
-		// Determine which translation to link to
-		const linkTranslation = this.getLinkTranslation(translation);
-		
 		// Generate hidden links for all verses except the first (which is already linked in title)
 		const hiddenLinks = verses.slice(1).map(verse => {
-			// Convert book name for linking (Psalms → Psalm)
-			const linkBookName = verse.book === 'Psalms' ? 'Psalm' : verse.book;
-			const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verse.chapter}`;
-			return `[[${linkPath}#${verse.verse}|]]`;
-		});
+			const resolution = resolveScriptureLink(this.settings, translation, verse.book, verse.chapter, verse.verse);
+			return resolution.target ? `[[${resolution.target}|]]` : null;
+		}).filter((link): link is string => !!link);
 
 		// Return as callout line with space-separated links
-		return `> ${hiddenLinks.join(' ')}`;
+		return hiddenLinks.length > 0 ? `> ${hiddenLinks.join(' ')}` : null;
 	}
 
 	private formatProperReference(reference: string, verses: BibleVerse[], translation: string, referenceFormat: ReferenceFormat): string {
@@ -125,27 +94,16 @@ export class CalloutFormatter {
 			{ isChapterReference }
 		);
 		
-		// Determine which translation to link to
-		const linkTranslation = this.getLinkTranslation(translation);
-		
-		// Convert book name for linking (Psalms → Psalm)
-		const linkBookName = verses[0].book === 'Psalms' ? 'Psalm' : verses[0].book;
-		
-		// Create the wikilink
-		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verses[0].chapter}`;
-		const anchor = isChapterReference ? '' : `#${verses[0].verse.toString()}`; // Link to first verse for ranges
-		
-		return `[[${linkPath}${anchor}|${displayText}]]`;
-	}
-
-	private getLinkTranslation(verseTranslation: string): string {
-		switch (this.settings.linkingStrategy) {
-			case 'verse-translation':
-				return verseTranslation;
-			case 'default-translation':
-			default:
-				return this.settings.defaultTranslation || verseTranslation;
-		}
+		const firstVerse = verses[0];
+		if (!firstVerse) return '';
+		const resolution = resolveScriptureLink(
+			this.settings,
+			translation,
+			firstVerse.book,
+			firstVerse.chapter,
+			isChapterReference ? undefined : firstVerse.verse,
+		);
+		return resolution.target ? `[[${resolution.target}|${displayText}]]` : displayText;
 	}
 
 	private formatVerse(verse: BibleVerse, index: number, totalVerses: number, includeVerseNumbers: boolean): string {
@@ -159,7 +117,7 @@ export class CalloutFormatter {
 		}
 		
 		// Add verse number based on settings
-	const versePrefix = this.getVersePrefix(verse.verse, index, includeVerseNumbers);
+		const versePrefix = this.getVersePrefix(verse.verse, index, includeVerseNumbers);
 		
 		return `${versePrefix}${content}`;
 	}
@@ -204,11 +162,7 @@ export class CalloutFormatter {
 	private isChapterReference(reference: string): boolean {
 		try {
 			const matches = Array.from(detectReferences(reference));
-			if (!matches.length || !(matches[0] as any).ref) {
-				return false;
-			}
-
-			return (matches[0] as any).ref.type === 'chapter';
+			return matches[0]?.ref.type === 'chapter';
 		} catch (error) {
 			console.error('Failed to detect reference type:', error);
 			return false;
@@ -249,13 +203,13 @@ export class CalloutFormatter {
 		if (lines.length === 1) {
 			return {
 				line: start.line,
-				ch: start.ch + lines[0].length
+					ch: start.ch + (lines[0]?.length ?? 0)
 			};
 		}
 
 		return {
 			line: start.line + lines.length - 1,
-			ch: lines[lines.length - 1].length
+			ch: lines.at(-1)?.length ?? 0
 		};
 	}
 
@@ -273,5 +227,13 @@ export class CalloutFormatter {
 			default:
 				return '';
 		}
+	}
+
+	private joinFormattedVerses(verses: BibleVerse[], formattedVerses: string[]): string {
+		return formattedVerses.reduce((text, formattedVerse, index) => {
+			if (index === 0) return formattedVerse;
+			const separator = verses[index]?.newParagraph ? '\n\n' : ' ';
+			return `${text}${separator}${formattedVerse}`;
+		}, '');
 	}
 }

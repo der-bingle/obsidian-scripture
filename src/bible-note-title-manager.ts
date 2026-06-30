@@ -113,7 +113,7 @@ export class BibleNoteTitleManager {
 					baseTitle: noteInfo.baseTitle,
 					translationName: noteInfo.translation.name,
 					chapterKey: noteInfo.chapterKey
-				} as BibleLeafInfo;
+				};
 			})
 			.filter((info): info is BibleLeafInfo => !!info);
 	}
