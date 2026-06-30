@@ -9,6 +9,7 @@ The plugin works locally. It does not make network requests, collect analytics, 
 - Insert a passage as a Scripture callout or plain text, with a live preview.
 - Insert only a linked scripture reference.
 - Configure multiple local Bible translations and choose the default translation.
+- Read local translations in one or more independently navigable Scripture sidebars.
 - Open a scripture chapter note from typed, selected, or clipboard text.
 - Switch an open chapter note to the corresponding chapter in another translation.
 - Control verse-number display and translation-aware tab titles for Bible notes.
@@ -89,6 +90,28 @@ Translation data uses this shape:
 
 Bible chapter notes are recognized by their configured directory. Translation switching uses a frontmatter `id` such as `JHN.003` to locate the same chapter in another translation.
 
+### Scripture sidebar
+
+Choose a default sidebar translation under **Scripture sidebar**. The ribbon and **Open sidebar** command reveal the most recently used sidebar. **Open new sidebar** clones its translation, chapter, and reading position into another split so two translations can be compared directly. Sidebars retain independent state and do not automatically follow open notes.
+
+Use **Open current chapter in sidebar** from a recognized chapter note to move the most recently used sidebar to that chapter. If none is open, the command creates one using the configured sidebar default.
+
+### Scripture links and consolidated notes
+
+The **Scripture links** settings choose both the note translation and path style used by generated links:
+
+- **Configured notes path** produces links such as `[[Bible/James 5#19]]` from the selected translation's notes directory.
+- **Note basename only** produces `[[James 5#19]]`. Use this only when chapter-note basenames are unique in the vault; otherwise Obsidian may resolve the link ambiguously.
+
+To retain a single canonical note set while reading other translations from JSON:
+
+1. Move the retained chapter notes manually to their shared directory, such as `Bible/`.
+2. Set that translation's Scripture notes directory to `Bible`.
+3. Disable **Available as Scripture notes in the vault** for JSON-only comparison translations.
+4. Select **Note basename only** if unqualified links are desired and note names are unique.
+
+The plugin does not move or rewrite existing notes or Markdown automatically.
+
 ## Commands
 
 Command IDs remain stable for hotkeys and integrations.
@@ -100,6 +123,9 @@ Command IDs remain stable for hotkeys and integrations.
 | Open note | `open-scripture-note` |
 | Open from clipboard | `open-scripture-from-clipboard` |
 | Open chapter in other translation | `open-chapter-in-translation` |
+| Open sidebar | `open-scripture-sidebar` |
+| Open new sidebar | `open-new-scripture-sidebar` |
+| Open current chapter in sidebar | `open-current-chapter-in-scripture-sidebar` |
 | Toggle verse numbers | `toggle-verse-numbers` |
 | Show first verse only | `show-first-verse-only` |
 | Show all verse numbers | `show-all-verse-numbers` |

@@ -2,6 +2,7 @@ import type { Editor, EditorPosition } from 'obsidian';
 import { detectReferences } from 'scripture-references';
 import type { BibleVerse, ReferenceFormat, ScriptureSettings } from './types';
 import { formatReferenceDisplay } from './reference-format';
+import { resolveScriptureLink } from './scripture-link';
 
 export interface InsertionTarget {
 	from: EditorPosition;
@@ -67,19 +68,14 @@ export class CalloutFormatter {
 			return null;
 		}
 
-		// Determine which translation to link to
-		const linkTranslation = this.getLinkTranslation(translation);
-		
 		// Generate hidden links for all verses except the first (which is already linked in title)
 		const hiddenLinks = verses.slice(1).map(verse => {
-			// Convert book name for linking (Psalms → Psalm)
-			const linkBookName = verse.book === 'Psalms' ? 'Psalm' : verse.book;
-			const linkPath = `Bible/${linkTranslation}/${linkBookName} ${verse.chapter}`;
-			return `[[${linkPath}#${verse.verse}|]]`;
-		});
+			const resolution = resolveScriptureLink(this.settings, translation, verse.book, verse.chapter, verse.verse);
+			return resolution.target ? `[[${resolution.target}|]]` : null;
+		}).filter((link): link is string => !!link);
 
 		// Return as callout line with space-separated links
-		return `> ${hiddenLinks.join(' ')}`;
+		return hiddenLinks.length > 0 ? `> ${hiddenLinks.join(' ')}` : null;
 	}
 
 	private formatProperReference(reference: string, verses: BibleVerse[], translation: string, referenceFormat: ReferenceFormat): string {
@@ -98,29 +94,16 @@ export class CalloutFormatter {
 			{ isChapterReference }
 		);
 		
-		// Determine which translation to link to
-		const linkTranslation = this.getLinkTranslation(translation);
-		
-		// Convert book name for linking (Psalms → Psalm)
 		const firstVerse = verses[0];
 		if (!firstVerse) return '';
-		const linkBookName = firstVerse.book === 'Psalms' ? 'Psalm' : firstVerse.book;
-		
-		// Create the wikilink
-		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${firstVerse.chapter}`;
-		const anchor = isChapterReference ? '' : `#${firstVerse.verse.toString()}`;
-		
-		return `[[${linkPath}${anchor}|${displayText}]]`;
-	}
-
-	private getLinkTranslation(verseTranslation: string): string {
-		switch (this.settings.linkingStrategy) {
-			case 'verse-translation':
-				return verseTranslation;
-			case 'default-translation':
-			default:
-				return this.settings.defaultTranslation || verseTranslation;
-		}
+		const resolution = resolveScriptureLink(
+			this.settings,
+			translation,
+			firstVerse.book,
+			firstVerse.chapter,
+			isChapterReference ? undefined : firstVerse.verse,
+		);
+		return resolution.target ? `[[${resolution.target}|${displayText}]]` : displayText;
 	}
 
 	private formatVerse(verse: BibleVerse, index: number, totalVerses: number, includeVerseNumbers: boolean): string {

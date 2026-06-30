@@ -404,6 +404,126 @@ body:not(.bible-text-justify) .bible .cm-line {
     margin: 0 0.2em;
 }
 
+/* Scripture sidebar */
+.scripture-sidebar-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0;
+}
+
+.scripture-sidebar-toolbar {
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(4.5rem, 0.55fr) auto;
+	gap: var(--size-4-2);
+	align-items: end;
+	padding: var(--size-4-2);
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	z-index: var(--layer-cover);
+}
+
+.scripture-sidebar-control {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.scripture-sidebar-control-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.scripture-sidebar-control select {
+	width: 100%;
+	min-width: 0;
+}
+
+.scripture-sidebar-navigation {
+	display: flex;
+	gap: var(--size-2-1);
+}
+
+.scripture-sidebar-reading {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-4);
+	line-height: var(--line-height-normal);
+}
+
+.scripture-sidebar-reading h2 {
+	margin-block-start: 0;
+}
+
+.scripture-sidebar-paragraph {
+	position: relative;
+	padding-inline-start: var(--bible-gutter-width);
+	margin-block: 0 1em;
+}
+
+.scripture-sidebar-reading .scripture-sidebar-paragraph .scripture-sidebar-verse sup,
+.scripture-sidebar-reading .scripture-sidebar-poetry .scripture-sidebar-verse sup {
+	display: inline;
+	position: static;
+	width: auto;
+	padding: 0;
+	text-align: inherit;
+	margin-inline-end: 0.25em;
+	font-size: var(--bible-verse-font-size);
+	color: var(--bible-verse-color);
+}
+
+.scripture-sidebar-poetry {
+	margin: 0 0 1em var(--size-4-4);
+}
+
+.scripture-sidebar-poetry-line {
+	position: relative;
+	padding-inline-start: var(--bible-gutter-width);
+	display: block;
+}
+
+.scripture-sidebar-reading.bible-numbers-first .scripture-sidebar-paragraph .scripture-sidebar-verse:first-child sup,
+.scripture-sidebar-reading.bible-numbers-all .scripture-sidebar-paragraph .scripture-sidebar-verse:first-child sup,
+.scripture-sidebar-reading.bible-numbers-first .scripture-sidebar-poetry-line:first-child sup,
+.scripture-sidebar-reading.bible-numbers-all .scripture-sidebar-poetry-line sup {
+	position: absolute;
+	left: 0;
+	top: var(--bible-verse-top-offset);
+	width: var(--bible-gutter-width);
+	padding-right: 0.4em;
+	text-align: right;
+}
+
+.scripture-sidebar-empty {
+	display: grid;
+	place-items: center;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.scripture-sidebar-reading.bible-numbers-none sup,
+.scripture-sidebar-reading.bible-numbers-first .scripture-sidebar-paragraph .scripture-sidebar-verse:not(:first-child) sup,
+.scripture-sidebar-reading.bible-numbers-first .scripture-sidebar-poetry-line:not(:first-child) sup {
+	display: none !important;
+}
+
+.scripture-link-warning {
+	color: var(--text-warning);
+}
+
+@media (max-width: 700px) {
+	.scripture-sidebar-toolbar {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	}
+
+	.scripture-sidebar-navigation {
+		justify-content: flex-end;
+	}
+}
+
 /* ‼️ NOTE TOOLBAR */
 .callout[data-callout="note-toolbar"].scripture {
     --cg-nt-item-icon-size: 25px;

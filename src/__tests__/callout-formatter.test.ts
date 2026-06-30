@@ -23,7 +23,17 @@ const verses: BibleVerse[] = [
 
 describe('callout formatting', () => {
 	it('preserves the established scripture callout shape', () => {
-		const formatter = new CalloutFormatter({ ...DEFAULT_SETTINGS, defaultTranslation: 'CSB' });
+		const formatter = new CalloutFormatter({
+			...DEFAULT_SETTINGS,
+			defaultTranslation: 'CSB',
+			translations: [{
+				name: 'CSB',
+				fullName: 'Christian Standard Bible',
+				filePath: 'Data/csb.json',
+				availableAsNotes: true,
+				notesDirectory: 'Bible/CSB',
+			}],
+		});
 		const output = formatter.formatCallout('John 3:16-17', verses, 'CSB', true);
 
 		expect(output).toContain('> [!scripture] [[Bible/CSB/John 3#16|John 3:16–17]]');

@@ -20,7 +20,9 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		this.displayHeading(containerEl, 'Scripture');
 
 		this.displayTranslationsSection(containerEl);
+		this.displaySidebarSettings(containerEl);
 		this.displayInsertDefaults(containerEl);
+		this.displayScriptureLinksSettings(containerEl);
 		this.displayCalloutSettings(containerEl);
 		this.displayScriptureListSettings(containerEl);
 		this.displayScriptureNotesSettings(containerEl);
@@ -61,6 +63,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 						// Set as default if it's the first one
 						if (this.plugin.settings.translations.length === 1) {
 							this.plugin.settings.defaultTranslation = translation.name;
+							this.plugin.settings.sidebarDefaultTranslation = translation.name;
 						}
 						
 						await this.plugin.saveSettings();
@@ -143,12 +146,38 @@ export class ScriptureSettingTab extends PluginSettingTab {
 							? this.plugin.settings.translations[0]?.name ?? ''
 								: '';
 					}
+					if (this.plugin.settings.sidebarDefaultTranslation === translation.name) {
+						this.plugin.settings.sidebarDefaultTranslation = this.plugin.settings.defaultTranslation;
+					}
 					
 					await this.plugin.saveSettings();
 					this.display(); // Refresh the display
 					new Notice(`Removed translation: ${translation.name}`);
 				}));
 		});
+	}
+
+	private displaySidebarSettings(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Scripture sidebar');
+
+		new Setting(containerEl)
+			.setName('Default sidebar translation')
+			.setDesc('Translation used by the first sidebar and contextual chapter command when no sidebar is open')
+			.addDropdown(dropdown => {
+				if (this.plugin.settings.translations.length === 0) {
+					dropdown.addOption('', 'No translations configured');
+				} else {
+					this.plugin.settings.translations.forEach(translation => {
+						dropdown.addOption(translation.name, translation.fullName || translation.name);
+					});
+				}
+				dropdown
+					.setValue(this.plugin.settings.sidebarDefaultTranslation)
+					.onChange(async value => {
+						this.plugin.settings.sidebarDefaultTranslation = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 
 	private displayInsertDefaults(containerEl: HTMLElement): void {
@@ -201,20 +230,6 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName('Link reference format')
-			.setDesc('Default reference format for insert Scripture link')
-			.addDropdown(dropdown => dropdown
-				.addOption('full-name', 'Full book name (James 1:16–18)')
-				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
-				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
-				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
-				.setValue(this.plugin.settings.linkReferenceFormat)
-				.onChange(async (value) => {
-					this.plugin.settings.linkReferenceFormat = value as ReferenceFormat;
-					await this.plugin.saveSettings();
-				}));
-
 		// Include verse numbers on insert (default for modal)
 		new Setting(containerEl)
 			.setName('Include verse numbers when inserting')
@@ -225,6 +240,65 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					this.plugin.settings.includeVerseNumbersOnInsert = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	private displayScriptureLinksSettings(containerEl: HTMLElement): void {
+		this.displayHeading(containerEl, 'Scripture links');
+
+		new Setting(containerEl)
+			.setName('Link reference format')
+			.setDesc('Default display format for inserted Scripture links')
+			.addDropdown(dropdown => dropdown
+				.addOption('full-name', 'Full book name (James 1:16–18)')
+				.addOption('standard-abbrev', 'Standard abbreviation (Jas 1:16–18)')
+				.addOption('english-abbrev', 'Traditional abbreviations (Jas. 1:16–18)')
+				.addOption('chapter-verse', 'No book name (1:16–18 or 1)')
+				.setValue(this.plugin.settings.linkReferenceFormat)
+				.onChange(async value => {
+					this.plugin.settings.linkReferenceFormat = value as ReferenceFormat;
+					await this.plugin.saveSettings();
+				}));
+
+		const noteTranslationCount = this.plugin.settings.translations.filter(translation =>
+			translation.availableAsNotes && translation.notesDirectory
+		).length;
+		new Setting(containerEl)
+			.setName('Link translation')
+			.setDesc(noteTranslationCount < 2
+				? 'Links use the default note-enabled translation because fewer than two translations have Scripture notes'
+				: 'Choose whether links target the default translation or the translation supplying the verse text')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('default-translation', 'Always link to default translation')
+					.addOption('verse-translation', 'Link to verse translation')
+					.setValue(this.plugin.settings.linkingStrategy)
+					.onChange(async value => {
+						this.plugin.settings.linkingStrategy = value as ScriptureSettings['linkingStrategy'];
+						await this.plugin.saveSettings();
+					});
+				const verseOption = dropdown.selectEl.querySelector<HTMLOptionElement>('option[value="verse-translation"]');
+				if (verseOption) verseOption.disabled = noteTranslationCount < 2;
+			});
+
+		new Setting(containerEl)
+			.setName('Link path format')
+			.setDesc('Choose whether generated wikilinks include the configured notes directory')
+			.addDropdown(dropdown => dropdown
+				.addOption('configured-path', 'Configured notes path')
+				.addOption('basename', 'Note basename only')
+				.setValue(this.plugin.settings.linkPathFormat)
+				.onChange(async value => {
+					this.plugin.settings.linkPathFormat = value as ScriptureSettings['linkPathFormat'];
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		if (this.plugin.settings.linkPathFormat === 'basename') {
+			containerEl.createEl('p', {
+				text: 'Basename links such as [[James 5#19]] can be ambiguous when multiple notes share the same filename.',
+				cls: 'setting-item-description scripture-link-warning',
+			});
+		}
 	}
 
 	private displayCalloutSettings(containerEl: HTMLElement): void {
@@ -255,19 +329,6 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.translationDisplay)
 				.onChange(async (value) => {
 					this.plugin.settings.translationDisplay = value as ScriptureSettings['translationDisplay'];
-					await this.plugin.saveSettings();
-				}));
-
-		// Linking strategy setting
-		new Setting(containerEl)
-			.setName('Linking strategy')
-			.setDesc('Which translation to link to in Scripture callout titles')
-			.addDropdown(dropdown => dropdown
-				.addOption('default-translation', 'Always link to default translation')
-				.addOption('verse-translation', 'Link to verse translation')
-				.setValue(this.plugin.settings.linkingStrategy)
-				.onChange(async (value) => {
-					this.plugin.settings.linkingStrategy = value as ScriptureSettings['linkingStrategy'];
 					await this.plugin.saveSettings();
 				}));
 
@@ -355,14 +416,14 @@ export class ScriptureSettingTab extends PluginSettingTab {
 	private displayScriptureNotesSettings(containerEl: HTMLElement): void {
 		this.displayHeading(containerEl, 'Scripture notes');
 		containerEl.createEl('p', { 
-			text: 'These settings apply to Scripture chapter notes in your vault, not to inserted Scripture.',
+			text: 'These settings apply to Scripture chapter notes and Scripture sidebars, not to inserted Scripture.',
 			cls: 'setting-item-description'
 		});
 
 		// Verse number visibility setting
 		new Setting(containerEl)
 			.setName('Show verse numbers')
-			.setDesc('Whether verse numbers are displayed in Scripture notes')
+			.setDesc('Whether verse numbers are displayed in Scripture notes and sidebars')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.verseNumbersVisible)
 				.onChange(async (value: boolean) => {
@@ -375,7 +436,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 		// Verse number display mode setting
 		new Setting(containerEl)
 			.setName('Verse number display mode')
-			.setDesc('How verse numbers are displayed in Scripture notes when visible')
+			.setDesc('How verse numbers are displayed in Scripture notes and sidebars when visible')
 			.addDropdown(dropdown => dropdown
 				.addOption('first', 'Show first verse number only')
 				.addOption('all', 'Show all verse numbers')

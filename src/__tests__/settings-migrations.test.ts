@@ -12,6 +12,8 @@ describe('settings migrations', () => {
 		expect(result.didMigrate).toBe(true);
 		expect(result.settings.calloutReferenceFormat).toBe('english-abbrev');
 		expect(result.settings.defaultTranslation).toBe('CSB');
+		expect(result.settings.sidebarDefaultTranslation).toBe('CSB');
+		expect(result.settings.linkPathFormat).toBe('configured-path');
 		expect(result.settings.translations).toEqual([{
 			name: 'CSB',
 			fullName: 'CSB',
@@ -23,5 +25,20 @@ describe('settings migrations', () => {
 		const result = migrateStoredSettings(null);
 		expect(result.didMigrate).toBe(false);
 		expect(result.settings.translations).toEqual([]);
+	});
+
+	it('repairs invalid sidebar and link settings', () => {
+		const result = migrateStoredSettings({
+			translations: [{ name: 'CSB', fullName: 'CSB', filePath: 'csb.json' }],
+			defaultTranslation: 'CSB',
+			sidebarDefaultTranslation: 'MISSING',
+			linkPathFormat: 'legacy',
+			lastSidebarState: { chapter: -4, side: 'left' },
+		});
+
+		expect(result.didMigrate).toBe(true);
+		expect(result.settings.sidebarDefaultTranslation).toBe('CSB');
+		expect(result.settings.linkPathFormat).toBe('configured-path');
+		expect(result.settings.lastSidebarState).toMatchObject({ chapter: 1, side: 'left' });
 	});
 });

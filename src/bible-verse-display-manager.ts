@@ -36,6 +36,9 @@ export class BibleVerseDisplayManager {
 
 		// Get the editor container (Live Preview mode)
 		const editorContainer = view.containerEl.querySelector('.cm-editor');
+		// Frontmatter cssclasses are applied here and may contain a persisted
+		// bible-numbers-* class that would otherwise override the editor class.
+		const sourceContainer = view.containerEl.querySelector('.markdown-source-view');
 		// Get the preview container (Reading mode)
 		const previewContainer = view.containerEl.querySelector('.markdown-preview-view');
 
@@ -44,6 +47,17 @@ export class BibleVerseDisplayManager {
 		
 		// Determine which class to apply based on settings
 		const classToApply = this.getCurrentDisplayClass();
+
+		// The editor and preview elements can be replaced when Obsidian changes modes.
+		// Keep the state on the persistent view container as well so the replacement
+		// remains covered by the descendant-based verse number selectors.
+		view.containerEl.removeClass(...classesToRemove);
+		view.containerEl.addClass(classToApply);
+
+		if (sourceContainer) {
+			sourceContainer.removeClass(...classesToRemove);
+			sourceContainer.addClass(classToApply);
+		}
 		
 		if (editorContainer) {
 			editorContainer.removeClass(...classesToRemove);
@@ -73,9 +87,16 @@ export class BibleVerseDisplayManager {
 		if (view.getViewType() !== 'markdown') return;
 
 		const editorContainer = view.containerEl.querySelector('.cm-editor');
+		const sourceContainer = view.containerEl.querySelector('.markdown-source-view');
 		const previewContainer = view.containerEl.querySelector('.markdown-preview-view');
 
 		const classesToRemove = ['bible-numbers-none', 'bible-numbers-first', 'bible-numbers-all'];
+
+		view.containerEl.removeClass(...classesToRemove);
+
+		if (sourceContainer) {
+			sourceContainer.removeClass(...classesToRemove);
+		}
 
 		if (editorContainer) {
 			editorContainer.removeClass(...classesToRemove);

@@ -1,5 +1,6 @@
 import { App, normalizePath } from 'obsidian';
 import type { BibleData, BibleTranslation } from './types';
+import { isBibleData, validateBibleData } from './bible-data-validation';
 
 export class BibleDataLoader {
 	private app: App;
@@ -23,8 +24,9 @@ export class BibleDataLoader {
 				const bibleData: unknown = JSON.parse(data);
 
 				// Validate data structure
-				if (!this.validateBibleData(bibleData)) {
-					console.error(`Invalid Bible data format: ${translation.filePath}`);
+				if (!isBibleData(bibleData)) {
+					const validation = validateBibleData(bibleData);
+					console.error(`Invalid Bible data format: ${translation.filePath}: ${validation.errorMessage || 'Unknown error'}`);
 					return null;
 				}
 
@@ -54,8 +56,9 @@ export class BibleDataLoader {
 			const data = await this.app.vault.cachedRead(file);
 			const bibleData: unknown = JSON.parse(data);
 
-			if (!this.validateBibleData(bibleData)) {
-				return { isValid: false, errorMessage: 'Invalid Bible data format' };
+			const validation = validateBibleData(bibleData);
+			if (!validation.isValid) {
+				return { isValid: false, errorMessage: validation.errorMessage || 'Invalid Bible data format' };
 			}
 
 			return { isValid: true };
@@ -79,29 +82,4 @@ export class BibleDataLoader {
 		}
 	}
 
-	private validateBibleData(data: unknown): data is BibleData {
-		if (!data || typeof data !== 'object') {
-			return false;
-		}
-		const candidate = data as Record<string, unknown>;
-
-		if (typeof candidate.translation !== 'string' || !candidate.translation) {
-			return false;
-		}
-
-		if (!Array.isArray(candidate.books)) {
-			return false;
-		}
-
-		if (candidate.books.length > 0) {
-			const firstBook: unknown = candidate.books[0];
-			if (!firstBook || typeof firstBook !== 'object') return false;
-			const book = firstBook as Record<string, unknown>;
-			if (typeof book.id !== 'string' || typeof book.title !== 'string' || !Array.isArray(book.chapters)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
 }

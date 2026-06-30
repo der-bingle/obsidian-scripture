@@ -5,8 +5,8 @@ export interface BibleVerse {
 	chapter: number;
 	verse: number;
 	content: string[];
-	newParagraph?: boolean;
-	poetry?: boolean;
+	newParagraph?: boolean | null;
+	poetry?: boolean | null;
 }
 
 export interface BibleData {
@@ -38,8 +38,8 @@ export interface BibleVerseData {
 	chapter: number;
 	verse: number;
 	content: string[];
-	newParagraph: boolean;
-	poetry: boolean;
+	newParagraph?: boolean;
+	poetry?: boolean;
 }
 
 // Translation configuration
@@ -55,6 +55,19 @@ export interface BibleTranslation {
 
 export type ReferenceFormat = 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 export type InsertScriptureFormat = 'scripture-callout' | 'plain-text';
+export type LinkPathFormat = 'configured-path' | 'basename';
+export type ScriptureSidebarSide = 'left' | 'right';
+
+export interface ScriptureSidebarState {
+	instanceId: string;
+	translation: string;
+	bookId: string;
+	chapter: number;
+	anchorVerse: number;
+	anchorOffset: number;
+	side: ScriptureSidebarSide;
+	lastUsedAt: number;
+}
 
 // Plugin settings interface
 export interface ScriptureSettings {
@@ -70,6 +83,7 @@ export interface ScriptureSettings {
 	scriptureListSourceReferenceFormat: ReferenceFormat;
 	scriptureListReorderSourceByBook: boolean;
 	linkingStrategy: 'default-translation' | 'verse-translation';
+	linkPathFormat: LinkPathFormat;
 	includeHiddenLinks: boolean;
 	/** Default for the insert modal: whether to include verse numbers when inserting multi-verse callouts */
 	includeVerseNumbersOnInsert: boolean;
@@ -77,6 +91,8 @@ export interface ScriptureSettings {
 	verseNumbersVisible: boolean;
 	verseNumberDisplayMode: 'first' | 'all';
 	bibleNoteTabTitleMode: 'never' | 'duplicates-only' | 'always';
+	sidebarDefaultTranslation: string;
+	lastSidebarState: ScriptureSidebarState | null;
 }
 
 // Default settings
@@ -93,12 +109,15 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	scriptureListSourceReferenceFormat: 'standard-abbrev',
 	scriptureListReorderSourceByBook: false,
 	linkingStrategy: 'default-translation',
+	linkPathFormat: 'configured-path',
 	includeHiddenLinks: false,
 	includeVerseNumbersOnInsert: false,
 	calloutFolding: 'not-foldable',
 	verseNumbersVisible: true,
 	verseNumberDisplayMode: 'first',
-	bibleNoteTabTitleMode: 'duplicates-only'
+	bibleNoteTabTitleMode: 'duplicates-only',
+	sidebarDefaultTranslation: '',
+	lastSidebarState: null
 };
 
 // Modal callback type

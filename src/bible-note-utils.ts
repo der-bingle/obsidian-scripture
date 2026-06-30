@@ -8,6 +8,11 @@ export interface BibleNoteInfo {
 	chapterKey: string;
 }
 
+export interface BibleNoteChapterReference {
+	bookId: string;
+	chapter: number;
+}
+
 export const getNoteEnabledTranslations = (settings: ScriptureSettings): BibleTranslation[] =>
 	settings.translations.filter(translation => translation.availableAsNotes && !!translation.notesDirectory);
 
@@ -21,6 +26,22 @@ export const getBibleNoteTranslation = (settings: ScriptureSettings, file: TFile
 
 export const isBibleNoteFile = (settings: ScriptureSettings, file: TFile): boolean =>
 	!!getBibleNoteTranslation(settings, file);
+
+export const getBibleNoteChapterReference = (
+	app: App,
+	settings: ScriptureSettings,
+	file: TFile,
+): BibleNoteChapterReference | null => {
+	if (!isBibleNoteFile(settings, file)) return null;
+	const frontmatterId: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.id;
+	if (typeof frontmatterId !== 'string') return null;
+	const match = /^([A-Z0-9]{3})\.(\d{1,3})$/i.exec(frontmatterId.trim());
+	if (!match?.[1] || !match[2]) return null;
+	const chapter = Number(match[2]);
+	return Number.isInteger(chapter) && chapter > 0
+		? { bookId: match[1].toUpperCase(), chapter }
+		: null;
+};
 
 export const normalizeBibleNoteBasename = (basename: string): string =>
 	basename.trim().replace(/\s+/g, ' ').toLowerCase();
