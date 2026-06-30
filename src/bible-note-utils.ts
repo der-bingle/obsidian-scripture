@@ -1,4 +1,4 @@
-import { App, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, normalizePath, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import type { BibleTranslation, ScriptureSettings } from './types';
 
 export interface BibleNoteInfo {
@@ -12,7 +12,7 @@ export const getNoteEnabledTranslations = (settings: ScriptureSettings): BibleTr
 	settings.translations.filter(translation => translation.availableAsNotes && !!translation.notesDirectory);
 
 export const normalizeNotesDirectory = (directory: string): string =>
-	!directory ? '' : (directory.endsWith('/') ? directory : `${directory}/`);
+	!directory ? '' : `${normalizePath(directory)}/`;
 
 export const getBibleNoteTranslation = (settings: ScriptureSettings, file: TFile): BibleTranslation | null =>
 	getNoteEnabledTranslations(settings).find(translation =>
@@ -27,7 +27,7 @@ export const normalizeBibleNoteBasename = (basename: string): string =>
 
 export const getBibleNoteChapterKey = (app: App, file: TFile): string => {
 	const cache = app.metadataCache.getFileCache(file);
-	const frontmatterId = cache?.frontmatter?.id;
+	const frontmatterId: unknown = cache?.frontmatter?.id;
 	const normalizedId = typeof frontmatterId === 'string' ? frontmatterId.trim() : '';
 
 	return normalizedId
