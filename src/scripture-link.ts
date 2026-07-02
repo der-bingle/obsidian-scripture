@@ -7,6 +7,12 @@ export interface ScriptureLinkResolution {
 	warning?: string;
 }
 
+interface VaultFilePath {
+	path: string;
+}
+
+type LinkpathResolver = (linkpath: string, sourcePath: string) => VaultFilePath | null;
+
 const getNoteTranslations = (settings: ScriptureSettings): BibleTranslation[] =>
 	settings.translations.filter(translation => translation.availableAsNotes && !!translation.notesDirectory);
 
@@ -73,3 +79,16 @@ export const resolveScriptureLink = (
 
 export const getEffectiveLinkingStrategy = (settings: ScriptureSettings): ScriptureSettings['linkingStrategy'] =>
 	getNoteTranslations(settings).length < 2 ? 'default-translation' : settings.linkingStrategy;
+
+export const resolveExistingScriptureTarget = (
+	target: string,
+	sourcePath: string,
+	resolveLinkpath: LinkpathResolver,
+): string | null => {
+	const subpathIndex = target.indexOf('#');
+	const linkpath = subpathIndex === -1 ? target : target.slice(0, subpathIndex);
+	const subpath = subpathIndex === -1 ? '' : target.slice(subpathIndex);
+	const file = resolveLinkpath(linkpath, sourcePath);
+
+	return file ? `${file.path}${subpath}` : null;
+};

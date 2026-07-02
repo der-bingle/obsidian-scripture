@@ -6,6 +6,7 @@ import type { BibleVerse, BibleTranslation, ProcessedReference, ScriptureSetting
 import { BibleDataLoader } from './bible-data-loader';
 import { CalloutFormatter } from './callout-formatter';
 import { formatReferenceDisplay } from './reference-format';
+import { resolveExistingScriptureTarget, resolveScriptureLink } from './scripture-link';
 import { parseScriptureListInput } from './scripture-list-parser';
 import type { ParsedScriptureListEntry } from './scripture-list-parser';
 
@@ -605,7 +606,7 @@ export class ScriptureListRenderer {
 			const refCell = row.createEl('td', { cls: 'scripture-list-reference-cell' });
 
 			if (!ref.error && ref.verses) {
-				this.renderReferenceLink(refCell, ref);
+				this.renderReferenceLink(refCell, ref, renderContext?.sourcePath || '');
 			} else {
 				refCell.textContent = ref.parsedReference;
 			}
@@ -640,7 +641,7 @@ export class ScriptureListRenderer {
 	/**
 	 * Render reference as a clickable link to chapter note
 	 */
-	private renderReferenceLink(cell: HTMLElement, ref: ProcessedReference): void {
+	private renderReferenceLink(cell: HTMLElement, ref: ProcessedReference, sourcePath: string): void {
 		if (!ref.verses || ref.verses.length === 0) {
 			cell.textContent = ref.parsedReference;
 			return;
@@ -652,31 +653,25 @@ export class ScriptureListRenderer {
 		const chapter = firstVerse.chapter;
 		const verse = firstVerse.verse;
 
-		// Determine which translation to link to
-		const translationObj = this.translations.find(t => t.name === ref.translation);
-		let linkTranslation = ref.translation;
-
-		// If translation not available as notes, fall back to default translation
-		if (translationObj && !translationObj.availableAsNotes) {
-			const defaultTranslationObj = this.translations.find(t => t.name === this.defaultTranslation);
-			if (defaultTranslationObj && defaultTranslationObj.availableAsNotes) {
-				linkTranslation = this.defaultTranslation;
-			}
+		const resolution = resolveScriptureLink(
+			this.settings,
+			ref.translation,
+			bookName,
+			chapter,
+			ref.isChapterReference ? undefined : verse,
+		);
+		if (!resolution.target) {
+			cell.textContent = ref.parsedReference;
+			return;
 		}
-
-		// Convert book name for linking (Psalms → Psalm)
-		const linkBookName = bookName === 'Psalms' ? 'Psalm' : bookName;
-
-		// Create the link path
-		const linkPath = `Bible/${linkTranslation}/${linkBookName} ${chapter}`;
-		const anchor = ref.isChapterReference ? '' : `#${verse}`;
+		const linkTarget = resolution.target;
 
 		// Create clickable link
 		const link = cell.createEl('a', {
 			cls: 'internal-link',
 			attr: {
-				'data-href': `${linkPath}${anchor}`,
-				href: `${linkPath}${anchor}`,
+				'data-href': linkTarget,
+				href: linkTarget,
 				target: '_blank',
 				rel: 'noopener'
 			}
@@ -686,7 +681,16 @@ export class ScriptureListRenderer {
 		// Handle click to navigate within Obsidian
 		link.addEventListener('click', (e) => {
 			e.preventDefault();
-			void this.app.workspace.openLinkText(`${linkPath}${anchor}`, '', false, { active: true });
+			const existingTarget = resolveExistingScriptureTarget(
+				linkTarget,
+				sourcePath,
+				(linkpath, linkSourcePath) => this.app.metadataCache.getFirstLinkpathDest(linkpath, linkSourcePath),
+			);
+			if (!existingTarget) {
+				new Notice(`Scripture note not found: ${linkTarget}`);
+				return;
+			}
+			void this.app.workspace.openLinkText(existingTarget, sourcePath, false, { active: true });
 		});
 	}
 
