@@ -770,7 +770,7 @@ body:not(.bible-text-justify) .bible .cm-line {
     vertical-align: top;
 }
 
-.scripture-list-reference-cell {
+.scripture-list-wrapper .scripture-list-table .scripture-list-reference-cell {
     white-space: nowrap;
 }
 
