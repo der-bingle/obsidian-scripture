@@ -10,8 +10,7 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"test": "vitest run",
-		"check": "npm run lint && npm run test && npm run build",
-		"version": "node version-bump.mjs"
+		"check": "npm run lint && npm run test && npm run build"
 	},
 	"keywords": [
 		"obsidian",

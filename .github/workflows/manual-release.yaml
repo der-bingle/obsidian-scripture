@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 0.5.1)"
-        required: true
+        description: "Release version (e.g. 0.5.1). Leave blank to auto-increment the patch version."
+        required: false
+        default: ""
         type: string
       prerelease:
         description: "Mark as prerelease?"
         required: true
-        default: true
+        default: false
         type: boolean
       release_notes:
         description: "Release description (Markdown supported). Leave blank to auto-generate."
@@ -39,6 +40,33 @@ jobs:
 
       - name: install
         run: npm ci
+
+      - name: determine version
+        id: determine-version
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+
+          const inputVersion = process.env.INPUT_VERSION;
+
+          if (inputVersion) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${inputVersion}\n`);
+          } else {
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const parts = pkg.version.split(".").map(Number);
+
+            if (parts.length !== 3 || parts.some(Number.isNaN)) {
+              console.error(`Unexpected current version: ${pkg.version}`);
+              process.exit(1);
+            }
+
+            const [major, minor, patch] = parts;
+            const nextVersion = `${major}.${minor}.${patch + 1}`;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${nextVersion}\n`);
+          }
+          NODE
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
 
       - name: bump versions in json
         run: |
@@ -70,20 +98,23 @@ jobs:
           writeJson("versions.json", versions);
           NODE
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.determine-version.outputs.version }}
+
+      - name: sync package-lock.json version
+        run: npm install --package-lock-only
 
       - name: commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json manifest.json versions.json
-          git commit -m "chore(release): ${{ inputs.version }}" || echo "No changes to commit"
+          git commit -m "chore(release): ${{ steps.determine-version.outputs.version }}" || echo "No changes to commit"
           git push
 
       - name: create tag
         run: |
-          git tag "${{ inputs.version }}"
-          git push origin "${{ inputs.version }}"
+          git tag "${{ steps.determine-version.outputs.version }}"
+          git push origin "${{ steps.determine-version.outputs.version }}"
 
       - name: build
         run: npm run build
@@ -97,8 +128,8 @@ jobs:
       - name: create github release + upload assets
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ inputs.version }}
-          name: ${{ inputs.version }}
+          tag_name: ${{ steps.determine-version.outputs.version }}
+          name: ${{ steps.determine-version.outputs.version }}
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: ${{ inputs.release_notes == '' }}
           body: ${{ inputs.release_notes }}
