@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, ButtonComponent, ToggleComponent, normalizePath } from 'obsidian';
 import type { ScriptureSettings, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
 import { BibleDataLoader } from './bible-data-loader';
+import { FileSuggest, FolderSuggest } from './file-suggest';
 import type Scripture from './main';
 
 export class ScriptureSettingTab extends PluginSettingTab {
@@ -507,6 +508,22 @@ class TranslationModal extends Modal {
 		const { contentEl } = this;
 		this.setTitle(this.translation ? 'Edit translation' : 'Add translation');
 
+		// File path
+		new Setting(contentEl)
+			.setName('File path')
+			.setDesc('Path to the translation json file (relative to vault root). Selecting a file autofills the name and full name below.')
+			.addText(text => {
+				this.pathInput = text;
+				text
+					.setPlaceholder('Bible/ESV/esv.json')
+					.setValue(this.translation?.filePath || '')
+					.onChange(() => {
+						this.validateForm();
+						void this.autofillFromPath();
+					});
+				new FileSuggest(this.app, text.inputEl, 'json');
+			});
+
 		// Translation name
 		new Setting(contentEl)
 			.setName('Translation name')
@@ -528,18 +545,6 @@ class TranslationModal extends Modal {
 				text
 					.setPlaceholder('English Standard Version (ESV)')
 					.setValue(this.translation?.fullName || '')
-					.onChange(() => this.validateForm());
-			});
-
-		// File path
-		new Setting(contentEl)
-			.setName('File path')
-			.setDesc('Path to the translation json file (relative to vault root)')
-			.addText(text => {
-				this.pathInput = text;
-				text
-					.setPlaceholder('Bible/ESV/esv.json')
-					.setValue(this.translation?.filePath || '')
 					.onChange(() => this.validateForm());
 			});
 
@@ -567,6 +572,7 @@ class TranslationModal extends Modal {
 					.setPlaceholder('Bible/ESV/')
 					.setValue(this.translation?.notesDirectory || '')
 					.onChange(() => this.validateForm());
+				new FolderSuggest(this.app, text.inputEl);
 			});
 
 		// Set initial visibility
@@ -584,12 +590,37 @@ class TranslationModal extends Modal {
 			.setCta()
 			.onClick(() => void this.handleSubmit());
 
-		// Focus name input
-		window.setTimeout(() => this.nameInput.inputEl.focus(), 100);
+		// Focus file path input
+		window.setTimeout(() => this.pathInput.inputEl.focus(), 100);
 	}
 
 	private toggleNotesDirectoryVisibility(show: boolean): void {
 		this.notesDirectorySetting.settingEl.toggleClass('scripture-setting-hidden', !show);
+	}
+
+	private async autofillFromPath(): Promise<void> {
+		const rawPath = this.pathInput.getValue().trim();
+		if (!rawPath) return;
+
+		const file = this.app.vault.getFileByPath(normalizePath(rawPath));
+		if (!file) return;
+
+		let data: unknown;
+		try {
+			data = JSON.parse(await this.app.vault.cachedRead(file));
+		} catch {
+			return;
+		}
+		if (typeof data !== 'object' || data === null) return;
+
+		const { translation, fullName } = data as Record<string, unknown>;
+		if (typeof translation === 'string' && translation.trim() !== '') {
+			this.nameInput.setValue(translation.trim());
+		}
+		if (typeof fullName === 'string' && fullName.trim() !== '') {
+			this.fullNameInput.setValue(fullName.trim());
+		}
+		this.validateForm();
 	}
 
 	private validateForm(): boolean {
