@@ -9,7 +9,8 @@ import { BibleChapterNavigator } from './bible-chapter-navigator';
 import { BibleNoteTitleManager } from './bible-note-title-manager';
 import { createScriptureListRenderContext, ScriptureListRenderer } from './scripture-list-renderer';
 import { ScriptureNoteSwitcherModal } from './scripture-note-switcher';
-import type { ScriptureSettings, BibleVerse, ScriptureAPI, BibleTranslation, ReferenceFormat, ScriptureSidebarSide, ScriptureSidebarState } from './types';
+import type { ScriptureSettings, BibleVerse, ScriptureAPI, ScriptureCalloutOptions, ScriptureCalloutResult, BibleTranslation, ReferenceFormat, ScriptureSidebarSide, ScriptureSidebarState } from './types';
+import { parseAndLookupReference } from './verse-lookup';
 import type { InsertionTarget } from './callout-formatter';
 import { migrateStoredSettings } from './settings-migrations';
 import { getBibleNoteChapterReference } from './bible-note-utils';
@@ -785,7 +786,9 @@ export default class Scripture extends Plugin {
 			parseScriptureReference: this.parseScriptureReference.bind(this),
 			normalizeBookName: this.normalizeBookName.bind(this),
 			resolveScriptureNote: this.resolveScriptureNote.bind(this),
-			openScriptureNote: this.openScriptureNote.bind(this)
+			openScriptureNote: this.openScriptureNote.bind(this),
+			getScriptureCallout: this.getScriptureCallout.bind(this),
+			getScriptureCallouts: this.getScriptureCallouts.bind(this)
 		};
 
 		const pluginRegistry = (this.app as AppWithPlugins).plugins.plugins;
@@ -802,6 +805,62 @@ export default class Scripture extends Plugin {
 			const openInNewLeaf = params.newLeaf === '1' || params.newLeaf === 'true';
 			await this.openScriptureNote(input, { openInNewLeaf });
 		});
+	}
+
+	/**
+	 * Build a formatted scripture callout without touching an editor.
+	 * Returns null when the reference cannot be resolved.
+	 */
+	private async getScriptureCallout(reference: string, options?: ScriptureCalloutOptions): Promise<string | null> {
+		const result = await this.buildScriptureCallout(reference, options);
+		return result.callout;
+	}
+
+	/**
+	 * Batch form of getScriptureCallout. Individual failures are reported per
+	 * reference rather than aborting the whole batch.
+	 */
+	private async getScriptureCallouts(references: string[], options?: ScriptureCalloutOptions): Promise<ScriptureCalloutResult[]> {
+		const results: ScriptureCalloutResult[] = [];
+		for (const reference of references) {
+			results.push(await this.buildScriptureCallout(reference, options));
+		}
+		return results;
+	}
+
+	private async buildScriptureCallout(reference: string, options?: ScriptureCalloutOptions): Promise<ScriptureCalloutResult> {
+		try {
+			const { reference: parsedReference, translation: detectedTranslation } = this.parseScriptureReference(reference);
+			if (!parsedReference) {
+				return { reference, callout: null, error: 'No scripture reference detected' };
+			}
+
+			const translationName = options?.translation || detectedTranslation || this.settings.defaultTranslation;
+			const translation = this.getTranslationSettings(translationName);
+			if (!translation) {
+				return { reference, callout: null, error: `Translation not configured: ${translationName}` };
+			}
+
+			const verses = await parseAndLookupReference(this.dataLoader, translation, parsedReference);
+			if (verses.length === 0) {
+				return { reference, callout: null, error: `No verses found for: ${parsedReference}` };
+			}
+
+			// includeVerseNumbers is passed through as-is: when undefined the
+			// formatter falls back to the global `verseNumbers` setting.
+			const callout = this.calloutFormatter.formatCallout(
+				parsedReference,
+				verses,
+				translation.name,
+				options?.includeVerseNumbers,
+				options?.referenceFormat
+			);
+
+			return { reference, callout };
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			return { reference, callout: null, error: message };
+		}
 	}
 
 	/**

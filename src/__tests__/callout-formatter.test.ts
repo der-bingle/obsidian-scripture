@@ -41,6 +41,29 @@ describe('callout formatting', () => {
 		expect(output).toContain('<sup>17</sup>He did not send his Son');
 	});
 
+	it('defers to the verseNumbers setting when includeVerseNumbers is omitted', () => {
+		const exclude = new CalloutFormatter({ ...DEFAULT_SETTINGS, verseNumbers: 'exclude' });
+		expect(exclude.formatCallout('John 3:16-17', verses, 'CSB')).not.toContain('<sup>');
+
+		const include = new CalloutFormatter({ ...DEFAULT_SETTINGS, verseNumbers: 'include' });
+		expect(include.formatCallout('John 3:16-17', verses, 'CSB')).toContain('<sup>16</sup>');
+
+		const excludeFirst = new CalloutFormatter({ ...DEFAULT_SETTINGS, verseNumbers: 'exclude-first' });
+		const output = excludeFirst.formatCallout('John 3:16-17', verses, 'CSB');
+		expect(output).not.toContain('<sup>16</sup>');
+		expect(output).toContain('<sup>17</sup>');
+	});
+
+	it('honours an explicit includeVerseNumbers over the setting', () => {
+		const formatter = new CalloutFormatter({ ...DEFAULT_SETTINGS, verseNumbers: 'include' });
+		expect(formatter.formatCallout('John 3:16-17', verses, 'CSB', false)).not.toContain('<sup>');
+	});
+
+	it('applies the folding indicator from settings', () => {
+		const formatter = new CalloutFormatter({ ...DEFAULT_SETTINGS, calloutFolding: 'foldable-expanded' });
+		expect(formatter.formatCallout('John 3:16-17', verses, 'CSB')).toContain('> [!scripture]+ ');
+	});
+
 	it('keeps imported text literal in generated markdown', () => {
 		const formatter = new CalloutFormatter(DEFAULT_SETTINGS);
 		const unsafeVerse = [{ ...verses[0]!, content: ['<img src=x onerror=alert(1)>'] }];

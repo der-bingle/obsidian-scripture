@@ -26,14 +26,18 @@ export class CalloutFormatter {
 		this.insertText(editor, plainText, insertionTarget);
 	}
 
-	private formatPlainText(verses: BibleVerse[], includeVerseNumbers: boolean): string {
+	private formatPlainText(verses: BibleVerse[], includeVerseNumbers?: boolean): string {
 		// Format each verse according to settings
 		const formattedVerses = verses.map((verse, index) => this.formatVerse(verse, index, verses.length, includeVerseNumbers));
 
 		return this.joinFormattedVerses(verses, formattedVerses);
 	}
 
-	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers: boolean, referenceFormat?: ReferenceFormat): string {
+	/**
+	 * Build a scripture callout block.
+	 * When `includeVerseNumbers` is omitted, the global `verseNumbers` setting decides.
+	 */
+	formatCallout(reference: string, verses: BibleVerse[], translation: string, includeVerseNumbers?: boolean, referenceFormat?: ReferenceFormat): string {
 		// Create properly formatted reference with full book name
 		const formattedReference = this.formatProperReference(reference, verses, translation, referenceFormat || this.settings.calloutReferenceFormat);
 		const foldingIndicator = this.getFoldingIndicator();
@@ -106,7 +110,7 @@ export class CalloutFormatter {
 		return resolution.target ? `[[${resolution.target}|${displayText}]]` : displayText;
 	}
 
-	private formatVerse(verse: BibleVerse, index: number, totalVerses: number, includeVerseNumbers: boolean): string {
+	private formatVerse(verse: BibleVerse, index: number, totalVerses: number, includeVerseNumbers?: boolean): string {
 		// Start with the verse content, joining multiple lines with newlines
 		let content = verse.content.join('\n');
 		

@@ -203,4 +203,41 @@ export interface ScriptureAPI {
 	 * @returns true when a note was opened, false otherwise
 	 */
 	openScriptureNote(input: string, options?: { openInNewLeaf?: boolean; silent?: boolean }): Promise<boolean>;
+
+	/**
+	 * Build a formatted scripture callout block without touching an editor.
+	 * Applies the user's current callout settings (verse numbers, folding,
+	 * reference format, hidden links) unless explicitly overridden.
+	 * @param reference - Scripture reference input (e.g., "Luke 15:1-2", "John 3:16 NLT")
+	 * @param options - Optional overrides; omitted values fall back to settings
+	 * @returns The callout text, or null when the reference cannot be resolved
+	 */
+	getScriptureCallout(reference: string, options?: ScriptureCalloutOptions): Promise<string | null>;
+
+	/**
+	 * Batch form of {@link ScriptureAPI.getScriptureCallout}.
+	 * Never throws for individual failures — unresolvable references come back
+	 * with a null callout and an error message.
+	 * @param references - Scripture reference inputs
+	 * @param options - Optional overrides applied to every reference
+	 */
+	getScriptureCallouts(references: string[], options?: ScriptureCalloutOptions): Promise<ScriptureCalloutResult[]>;
+}
+
+export interface ScriptureCalloutOptions {
+	/** Translation name (e.g., "CSB"). Defaults to the reference's own suffix, then the default translation. */
+	translation?: string;
+	/** Force verse numbers on or off. Omit to use the `verseNumbers` setting. */
+	includeVerseNumbers?: boolean;
+	/** Override the callout reference format. Omit to use `calloutReferenceFormat`. */
+	referenceFormat?: ReferenceFormat;
+}
+
+export interface ScriptureCalloutResult {
+	/** The reference as supplied by the caller */
+	reference: string;
+	/** The formatted callout, or null when the reference could not be resolved */
+	callout: string | null;
+	/** Why the reference failed to resolve, when applicable */
+	error?: string;
 }

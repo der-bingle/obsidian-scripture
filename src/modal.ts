@@ -1,8 +1,7 @@
 import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent, setIcon } from 'obsidian';
-import { detectReferences } from 'scripture-references';
-import type { PassageReference } from 'scripture-references';
 import type { BibleVerse, OnSubmitCallback, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
 import { BibleDataLoader } from './bible-data-loader';
+import { parseAndLookupReference as resolveReferenceToVerses } from './verse-lookup';
 
 export class ScriptureModal extends Modal {
 	private translations: BibleTranslation[];
@@ -311,89 +310,18 @@ export class ScriptureModal extends Modal {
 
 	private async parseAndLookupReference(reference: string): Promise<BibleVerse[]> {
 		try {
-			const matches = Array.from(detectReferences(reference));
-			const firstMatch = matches[0];
-
-			if (!firstMatch) {
-				return [];
+			// Load the selected translation
+			const translation = this.translations.find(t => t.name === this.selectedTranslation);
+			if (!translation) {
+				throw new Error('Selected translation not found');
 			}
 
-			return await this.lookupVerses(firstMatch.ref);
+			return await resolveReferenceToVerses(this.dataLoader, translation, reference);
 
 		} catch (error) {
 			console.error('Error in parseAndLookupReference:', error);
 			throw error;
 		}
-	}
-
-	private async lookupVerses(ref: PassageReference): Promise<BibleVerse[]> {
-		// Load the selected translation
-		const translation = this.translations.find(t => t.name === this.selectedTranslation);
-		if (!translation) {
-			throw new Error('Selected translation not found');
-		}
-
-		const bibleData = await this.dataLoader.loadTranslation(translation);
-		if (!bibleData) {
-			throw new Error(`Failed to load translation: ${this.selectedTranslation}`);
-		}
-
-		const verses: BibleVerse[] = [];
-
-		// Convert book ID to our format (e.g., 'jhn' -> 'JHN')
-		const bookCode = ref.book.toUpperCase();
-
-		const chapter = ref.start_chapter;
-		const startVerse = ref.start_verse;
-		const isChapterReference = ref.type === 'chapter';
-
-		// Find the book in the books array
-		const book = bibleData.books.find(b => b.id === bookCode);
-		if (!book) {
-			return [];
-		}
-
-		// Find the chapter
-		if (!book.chapters || !Array.isArray(book.chapters)) {
-			return [];
-		}
-
-		const chapterData = book.chapters.find(c => c.chapter === chapter);
-		if (!chapterData) {
-			return [];
-		}
-
-		// Find the verses
-		if (!chapterData.verses || !Array.isArray(chapterData.verses)) {
-			return [];
-		}
-
-		const endVerse = isChapterReference
-			? chapterData.verses[chapterData.verses.length - 1]?.verse
-			: (ref.end_verse || ref.start_verse);
-		const lookupStartVerse = isChapterReference ? chapterData.verses[0]?.verse : startVerse;
-		if (!lookupStartVerse || !endVerse) {
-			return [];
-		}
-
-		for (let verseNum = lookupStartVerse; verseNum <= endVerse; verseNum++) {
-			const verseData = chapterData.verses.find(v => v.verse === verseNum);
-			if (verseData) {
-				// Convert to our expected BibleVerse format
-				const bibleVerse: BibleVerse = {
-					id: verseData.id,
-					book: verseData.book,
-					chapter: verseData.chapter,
-					verse: verseData.verse,
-					content: verseData.content,
-					newParagraph: verseData.newParagraph,
-					poetry: verseData.poetry
-				};
-				verses.push(bibleVerse);
-			}
-		}
-
-		return verses;
 	}
 
 	private async pasteReferenceFromClipboard(): Promise<void> {
