@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAndLookupReference } from '../verse-lookup';
+import { parseAndLookupReference, resolveScriptureReference } from '../verse-lookup';
 import type { BibleData, BibleTranslation } from '../types';
 import type { BibleDataLoader } from '../bible-data-loader';
 
@@ -49,14 +49,29 @@ describe('verse lookup', () => {
 		expect(verses[0]?.verse).toBe(2);
 	});
 
+	it.each([
+		['full book name', 'Luke 15:2'],
+		['book abbreviation', 'Lk 15:2'],
+		['punctuation variant', 'Lk 15.2'],
+		['embedded reference', 'Read Luke 15:2 before the meeting'],
+	])('detects a reference using a %s', async (_label, input) => {
+		const resolved = await resolveScriptureReference(dataLoader, translation, input);
+		expect(resolved?.ref.book).toBe('luk');
+		expect(resolved?.ref.start_chapter).toBe(15);
+		expect(resolved?.ref.start_verse).toBe(2);
+		expect(resolved?.verses.map(verse => verse.verse)).toEqual([2]);
+	});
+
 	it('resolves a verse range', async () => {
-		const verses = await parseAndLookupReference(dataLoader, translation, 'Luke 15:1-2');
-		expect(verses.map(v => v.verse)).toEqual([1, 2]);
+		const resolved = await resolveScriptureReference(dataLoader, translation, 'Luke 15:1-2');
+		expect(resolved?.ref.type).toBe('range_verses');
+		expect(resolved?.verses.map(verse => verse.verse)).toEqual([1, 2]);
 	});
 
 	it('resolves a whole chapter reference', async () => {
-		const verses = await parseAndLookupReference(dataLoader, translation, 'Luke 15');
-		expect(verses.map(v => v.verse)).toEqual([1, 2, 3]);
+		const resolved = await resolveScriptureReference(dataLoader, translation, 'Luke 15');
+		expect(resolved?.ref.type).toBe('chapter');
+		expect(resolved?.verses.map(verse => verse.verse)).toEqual([1, 2, 3]);
 	});
 
 	it('populates the display book name, not the book code', async () => {
@@ -72,6 +87,10 @@ describe('verse lookup', () => {
 
 	it('returns an empty array when no reference is detected', async () => {
 		expect(await parseAndLookupReference(dataLoader, translation, 'not a reference')).toEqual([]);
+	});
+
+	it('returns null resolution when no reference is detected', async () => {
+		expect(await resolveScriptureReference(dataLoader, translation, 'not a reference')).toBeNull();
 	});
 
 	it('returns an empty array for a book that is missing from the data', async () => {

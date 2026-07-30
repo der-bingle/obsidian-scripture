@@ -1,4 +1,11 @@
 import type { ScriptureSettings, ScriptureSidebarSide, ScriptureSidebarState } from './types';
+import type { ResolvedScriptureReference } from './verse-lookup';
+
+export interface ScriptureSidebarNavigationTarget {
+	bookId: string;
+	chapter: number;
+	anchorVerse: number;
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -57,3 +64,16 @@ export const cloneScriptureSidebarState = (
 	instanceId: undefined,
 	lastUsedAt: Date.now(),
 });
+
+export const getScriptureSidebarNavigationTarget = (
+	resolved: ResolvedScriptureReference | null,
+): ScriptureSidebarNavigationTarget | null => {
+	const firstVerse = resolved?.verses[0];
+	if (!resolved || !firstVerse) return null;
+
+	return {
+		bookId: resolved.ref.book.toUpperCase(),
+		chapter: firstVerse.chapter,
+		anchorVerse: firstVerse.verse,
+	};
+};

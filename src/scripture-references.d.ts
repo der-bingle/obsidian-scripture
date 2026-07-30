@@ -9,6 +9,8 @@ declare module 'scripture-references' {
   }
 
   export function detectReferences(text: string): Iterable<PassageMatch>;
+  export function detectBookCode(input: string): string | null;
+  export function getChapterNumbers(book: string): number[];
   // backward-compatible alias used by older code in this repo
   export const detect_references: typeof detectReferences;
 

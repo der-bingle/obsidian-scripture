@@ -1,7 +1,9 @@
-import { ItemView, Notice, WorkspaceLeaf, setIcon } from 'obsidian';
-import type { BibleBook, BibleChapter, BibleData, BibleVerseData, ScriptureSettings, ScriptureSidebarSide, ScriptureSidebarState } from './types';
+import { ItemView, Menu, Notice, Platform, WorkspaceLeaf, setIcon } from 'obsidian';
+import type { BibleBook, BibleChapter, BibleData, BibleTranslation, BibleVerseData, ScriptureSettings, ScriptureSidebarSide, ScriptureSidebarState } from './types';
 import { BibleDataLoader } from './bible-data-loader';
-import { createScriptureSidebarState, parseScriptureSidebarState } from './scripture-sidebar-state';
+import { createScriptureSidebarState, getScriptureSidebarNavigationTarget, parseScriptureSidebarState } from './scripture-sidebar-state';
+import { resolveScriptureReference } from './verse-lookup';
+import { ScriptureReferenceInputSuggest } from './scripture-reference-input-suggest';
 
 export const SCRIPTURE_SIDEBAR_VIEW_TYPE = 'scripture-sidebar';
 
@@ -16,6 +18,9 @@ export class ScriptureSidebarView extends ItemView {
 	private readonly callbacks: ScriptureSidebarCallbacks;
 	private state: ScriptureSidebarState;
 	private readingEl: HTMLElement | null = null;
+	private referenceInputEl: HTMLInputElement | null = null;
+	private referenceSuggest: ScriptureReferenceInputSuggest | null = null;
+	private translationMenu: Menu | null = null;
 	private opened = false;
 	private renderVersion = 0;
 	private persistTimer: number | null = null;
@@ -63,6 +68,8 @@ export class ScriptureSidebarView extends ItemView {
 
 	protected onClose(): Promise<void> {
 		this.opened = false;
+		this.disposeTranslationMenu();
+		this.disposeReferenceSuggest();
 		this.captureScrollAnchor();
 		this.flushPersist();
 		return Promise.resolve();
@@ -114,6 +121,8 @@ export class ScriptureSidebarView extends ItemView {
 
 	private async render(preserveAnchor: boolean): Promise<void> {
 		if (preserveAnchor) this.captureScrollAnchor();
+		this.disposeTranslationMenu();
+		this.disposeReferenceSuggest();
 		const version = ++this.renderVersion;
 		const settings = this.callbacks.getSettings();
 		const selectedTranslation = settings.translations.find(translation => translation.name === this.state.translation)
@@ -122,18 +131,17 @@ export class ScriptureSidebarView extends ItemView {
 		this.state.translation = selectedTranslation?.name || '';
 
 		this.contentEl.empty();
-		const toolbar = this.contentEl.createDiv({ cls: 'scripture-sidebar-toolbar' });
-		const translationSelect = this.createSelect(toolbar, 'Translation');
-		for (const translation of settings.translations) {
-			translationSelect.createEl('option', { text: translation.fullName || translation.name, value: translation.name });
-		}
-		translationSelect.value = this.state.translation;
-		translationSelect.disabled = settings.translations.length === 0;
-		translationSelect.addEventListener('change', () => {
-			this.captureScrollAnchor();
-			this.state.translation = translationSelect.value;
-			this.markUsed();
-			void this.render(false);
+		this.referenceInputEl = null;
+		const toolbarClasses = ['scripture-sidebar-toolbar'];
+		if (Platform.isMobile) toolbarClasses.push('scripture-sidebar-toolbar-mobile');
+		const toolbar = this.contentEl.createDiv({ cls: toolbarClasses });
+		const previousNavigation = toolbar.createDiv({
+			cls: 'scripture-sidebar-navigation scripture-sidebar-navigation-previous',
+		});
+		const referenceInput = this.createReferenceInput(toolbar, settings.translations, selectedTranslation);
+		referenceInput.disabled = !selectedTranslation;
+		const nextNavigation = toolbar.createDiv({
+			cls: 'scripture-sidebar-navigation scripture-sidebar-navigation-next',
 		});
 
 		if (!selectedTranslation) {
@@ -155,11 +163,16 @@ export class ScriptureSidebarView extends ItemView {
 			return;
 		}
 		this.lastLoadError = '';
-		this.renderLoadedChapter(toolbar, bibleData);
+		this.renderLoadedChapter(previousNavigation, nextNavigation, referenceInput, bibleData);
 		this.schedulePersist();
 	}
 
-	private renderLoadedChapter(toolbar: HTMLElement, bibleData: BibleData): void {
+	private renderLoadedChapter(
+		previousNavigation: HTMLElement,
+		nextNavigation: HTMLElement,
+		referenceInput: HTMLInputElement,
+		bibleData: BibleData,
+	): void {
 		const book = bibleData.books.find(candidate => candidate.id === this.state.bookId) || bibleData.books[0];
 		if (!book) {
 			this.renderEmpty('This translation contains no books.');
@@ -172,48 +185,22 @@ export class ScriptureSidebarView extends ItemView {
 			return;
 		}
 		this.state.chapter = chapter.chapter;
+		const canonicalReference = `${book.title} ${chapter.chapter}`;
+		referenceInput.value = canonicalReference;
+		referenceInput.dataset.canonicalReference = canonicalReference;
+		this.syncReferenceInputSize(referenceInput);
 
-		const bookSelect = this.createSelect(toolbar, 'Book');
-		for (const candidate of bibleData.books) {
-			bookSelect.createEl('option', { text: candidate.title, value: candidate.id });
-		}
-		bookSelect.value = book.id;
-		bookSelect.addEventListener('change', () => {
-			const nextBook = bibleData.books.find(candidate => candidate.id === bookSelect.value);
-			if (!nextBook?.chapters[0]) return;
-			this.state.bookId = nextBook.id;
-			this.state.chapter = nextBook.chapters[0].chapter;
-			this.resetAnchor(nextBook.chapters[0]);
-			this.markUsed();
-			void this.render(false);
-		});
-
-		const chapterSelect = this.createSelect(toolbar, 'Chapter');
-		for (const candidate of book.chapters) {
-			chapterSelect.createEl('option', { text: String(candidate.chapter), value: String(candidate.chapter) });
-		}
-		chapterSelect.value = String(chapter.chapter);
-		chapterSelect.addEventListener('change', () => {
-			const nextChapter = book.chapters.find(candidate => candidate.chapter === Number(chapterSelect.value));
-			if (!nextChapter) return;
-			this.state.chapter = nextChapter.chapter;
-			this.resetAnchor(nextChapter);
-			this.markUsed();
-			void this.render(false);
-		});
-
-		const navigation = toolbar.createDiv({ cls: 'scripture-sidebar-navigation' });
 		const chapters = bibleData.books.flatMap(candidateBook => candidateBook.chapters.map(candidateChapter => ({
 			book: candidateBook,
 			chapter: candidateChapter,
 		})));
 		const currentIndex = chapters.findIndex(item => item.book.id === book.id && item.chapter.chapter === chapter.chapter);
-		this.createNavigationButton(navigation, 'Previous chapter', 'chevron-left', chapters[currentIndex - 1], currentIndex <= 0);
-		this.createNavigationButton(navigation, 'Next chapter', 'chevron-right', chapters[currentIndex + 1], currentIndex < 0 || currentIndex >= chapters.length - 1);
+		this.createNavigationButton(previousNavigation, 'Previous chapter', 'chevron-left', chapters[currentIndex - 1], currentIndex <= 0);
+		this.createNavigationButton(nextNavigation, 'Next chapter', 'chevron-right', chapters[currentIndex + 1], currentIndex < 0 || currentIndex >= chapters.length - 1);
 
 		this.readingEl = this.contentEl.createDiv({ cls: ['scripture-sidebar-reading', this.getVerseNumberDisplayClass()] });
-		this.readingEl.createEl('h2', { text: `${book.title} ${chapter.chapter}` });
-		this.renderVerses(this.readingEl, chapter.verses);
+		const readingContent = this.readingEl.createDiv({ cls: 'scripture-sidebar-reading-content' });
+		this.renderVerses(readingContent, chapter.verses);
 		this.readingEl.addEventListener('scroll', () => {
 			this.captureScrollAnchor();
 			this.markUsed();
@@ -230,10 +217,223 @@ export class ScriptureSidebarView extends ItemView {
 				: 'bible-numbers-first';
 	}
 
-	private createSelect(toolbar: HTMLElement, label: string): HTMLSelectElement {
-		const wrapper = toolbar.createEl('label', { cls: 'scripture-sidebar-control' });
-		wrapper.createSpan({ text: label, cls: 'scripture-sidebar-control-label' });
-		return wrapper.createEl('select', { attr: { 'aria-label': label } });
+	private createReferenceInput(
+		toolbar: HTMLElement,
+		translations: BibleTranslation[],
+		selectedTranslation: BibleTranslation | undefined,
+	): HTMLInputElement {
+		const form = toolbar.createEl('form', { cls: 'scripture-sidebar-reference-form' });
+		const inputShell = form.createSpan({ cls: 'scripture-sidebar-reference-input-shell' });
+		const input = inputShell.createEl('input', {
+			type: 'text',
+			placeholder: 'Enter a Scripture reference',
+			cls: 'scripture-sidebar-reference-input',
+			attr: {
+				'aria-label': 'Scripture reference',
+				title: 'Click to edit Scripture reference',
+				autocomplete: 'off',
+				enterkeyhint: 'go',
+				spellcheck: 'false',
+			},
+		});
+		const translationName = selectedTranslation?.name || 'Translation';
+		const translationControl = form.createSpan({ cls: 'scripture-sidebar-translation-control' });
+		translationControl.createSpan({
+			cls: 'scripture-sidebar-translation-separator',
+			text: ', ',
+			attr: { 'aria-hidden': 'true' },
+		});
+		const translationButton = translationControl.createEl('button', {
+			cls: 'scripture-sidebar-translation',
+			text: translationName,
+			attr: {
+				type: 'button',
+				'aria-label': selectedTranslation
+					? `Change translation, current ${translationName}`
+					: 'Choose translation',
+				'aria-haspopup': 'menu',
+				'aria-expanded': 'false',
+				title: selectedTranslation
+					? `Change translation (${selectedTranslation.fullName || translationName})`
+					: 'Choose translation',
+			},
+		});
+		translationButton.disabled = translations.length === 0;
+		const pasteButton = form.createEl('button', {
+			cls: 'clickable-icon scripture-sidebar-paste',
+			attr: {
+				type: 'button',
+				'aria-label': 'Paste reference from clipboard',
+				title: 'Paste reference from clipboard',
+			},
+		});
+		setIcon(pasteButton, 'clipboard-paste');
+		pasteButton.disabled = !selectedTranslation;
+		this.referenceInputEl = input;
+		translationButton.addEventListener('click', () => {
+			this.referenceSuggest?.close();
+			this.openTranslationMenu(translationButton, translations);
+		});
+		pasteButton.addEventListener('click', () => {
+			void this.pasteReferenceFromClipboard(input);
+		});
+		this.bindPasteVisibility(input, pasteButton);
+
+		form.addEventListener('submit', event => {
+			event.preventDefault();
+			void this.navigateFromReference(input.value);
+		});
+		input.addEventListener('keydown', event => {
+			if (event.key !== 'Escape') return;
+			event.preventDefault();
+			this.restoreCanonicalReference(input);
+			input.blur();
+		});
+		input.addEventListener('input', () => this.syncReferenceInputSize(input));
+		input.addEventListener('focus', () => this.disposeTranslationMenu());
+		input.addEventListener('blur', () => this.restoreCanonicalReference(input));
+		this.syncReferenceInputSize(input);
+		this.referenceSuggest = new ScriptureReferenceInputSuggest(
+			this.app,
+			input,
+			() => input.dataset.canonicalReference || '',
+			reference => this.navigateFromReference(reference),
+			() => this.syncReferenceInputSize(input),
+		);
+		return input;
+	}
+
+	private openTranslationMenu(button: HTMLButtonElement, translations: BibleTranslation[]): void {
+		this.disposeTranslationMenu();
+		const menu = new Menu();
+		for (const translation of translations) {
+			menu.addItem(item => item
+				.setTitle(translation.name)
+				.setChecked(translation.name === this.state.translation)
+				.onClick(() => this.selectTranslation(translation.name)));
+		}
+
+		menu.onHide(() => {
+			if (this.translationMenu === menu) this.translationMenu = null;
+			if (button.isConnected) button.setAttribute('aria-expanded', 'false');
+		});
+		this.translationMenu = menu;
+		button.setAttribute('aria-expanded', 'true');
+		const rect = button.getBoundingClientRect();
+		menu.showAtPosition({
+			x: rect.left,
+			y: rect.bottom,
+			width: rect.width,
+		}, button.ownerDocument);
+	}
+
+	private selectTranslation(translation: string): void {
+		if (translation === this.state.translation) return;
+		this.captureScrollAnchor();
+		this.state.translation = translation;
+		this.markUsed();
+		void this.render(false);
+	}
+
+	private disposeTranslationMenu(): void {
+		this.translationMenu?.close();
+		this.translationMenu = null;
+	}
+
+	private disposeReferenceSuggest(): void {
+		this.referenceSuggest?.destroy();
+		this.referenceSuggest = null;
+	}
+
+	private bindPasteVisibility(input: HTMLInputElement, button: HTMLButtonElement): void {
+		if (!Platform.isMobile) return;
+		const show = (): void => button.addClass('is-visible');
+		const hideAfterInteraction = (): void => {
+			window.setTimeout(() => {
+				if (input.ownerDocument.activeElement !== input) button.removeClass('is-visible');
+			});
+		};
+		input.addEventListener('focus', show);
+		input.addEventListener('blur', hideAfterInteraction);
+		button.addEventListener('click', hideAfterInteraction);
+		if (input.ownerDocument.activeElement === input) show();
+	}
+
+	private restoreCanonicalReference(input: HTMLInputElement): void {
+		const canonicalReference = input.dataset.canonicalReference;
+		if (canonicalReference) input.value = canonicalReference;
+		this.syncReferenceInputSize(input);
+	}
+
+	private syncReferenceInputSize(input: HTMLInputElement): void {
+		const shell = input.parentElement;
+		if (!shell?.classList.contains('scripture-sidebar-reference-input-shell')) return;
+		shell.dataset.value = input.value || input.placeholder;
+	}
+
+	private async navigateFromReference(input: string): Promise<void> {
+		const reference = input.trim();
+		if (!reference) {
+			new Notice('Please enter a Scripture reference');
+			this.focusReferenceInput();
+			return;
+		}
+
+		const settings = this.callbacks.getSettings();
+		const translation = settings.translations.find(candidate => candidate.name === this.state.translation);
+		if (!translation) {
+			new Notice('Please select a translation');
+			return;
+		}
+
+		const version = ++this.renderVersion;
+		try {
+			const resolved = await resolveScriptureReference(this.dataLoader, translation, reference);
+			if (version !== this.renderVersion) return;
+			const target = getScriptureSidebarNavigationTarget(resolved);
+			if (!target) {
+				new Notice('Reference not found or invalid format');
+				this.focusReferenceInput();
+				return;
+			}
+
+			this.state.bookId = target.bookId;
+			this.state.chapter = target.chapter;
+			this.state.anchorVerse = target.anchorVerse;
+			this.state.anchorOffset = 0;
+			this.markUsed();
+			await this.render(false);
+		} catch (error) {
+			if (version !== this.renderVersion) return;
+			console.error('Failed to navigate Scripture sidebar reference:', error);
+			new Notice('Unable to load this Scripture reference');
+			this.focusReferenceInput();
+		}
+	}
+
+	private focusReferenceInput(): void {
+		window.setTimeout(() => {
+			if (!this.referenceInputEl?.isConnected) return;
+			this.referenceInputEl.focus();
+			this.referenceInputEl.select();
+		});
+	}
+
+	private async pasteReferenceFromClipboard(input: HTMLInputElement): Promise<void> {
+		try {
+			const clipboardText = await navigator.clipboard.readText();
+			if (!clipboardText.trim()) {
+				new Notice('Clipboard is empty');
+				return;
+			}
+
+			input.value = clipboardText.trim();
+			this.syncReferenceInputSize(input);
+			await this.navigateFromReference(input.value);
+		} catch (error) {
+			console.error('Clipboard read failed:', error);
+			new Notice('Unable to read clipboard in this environment');
+		}
 	}
 
 	private createNavigationButton(
@@ -245,7 +445,7 @@ export class ScriptureSidebarView extends ItemView {
 	): void {
 		const button = container.createEl('button', {
 			cls: 'clickable-icon',
-			attr: { 'aria-label': label, title: label },
+			attr: { type: 'button', 'aria-label': label, title: label },
 		});
 		setIcon(button, icon);
 		button.disabled = disabled;
@@ -303,7 +503,9 @@ export class ScriptureSidebarView extends ItemView {
 
 	private renderEmpty(message: string): void {
 		this.readingEl = this.contentEl.createDiv({ cls: 'scripture-sidebar-reading scripture-sidebar-empty' });
-		this.readingEl.createEl('p', { text: message });
+		this.readingEl
+			.createDiv({ cls: 'scripture-sidebar-reading-content' })
+			.createEl('p', { text: message });
 	}
 
 	private resetAnchor(chapter: BibleChapter): void {

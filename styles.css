@@ -108,6 +108,105 @@ settings:
         type: class-toggle
         default: true
     -
+        id: scripture-sidebar-heading
+        title: Scripture sidebar
+        type: heading
+        level: 2
+    -
+        id: scripture-sidebar-reference-font
+        title: Passage input font family
+        description: Font family for the chapter title and reference input
+        type: variable-text
+        default: var(--h3-font, var(--font-text))
+    -
+        id: scripture-sidebar-reference-size
+        title: Passage input font size
+        description: CSS font size for the chapter title and reference input
+        type: variable-text
+        default: var(--h3-size)
+    -
+        id: scripture-sidebar-text-font
+        title: Scripture text font family
+        description: Font family for Scripture text in the sidebar
+        type: variable-text
+        default: var(--font-text)
+    -
+        id: scripture-sidebar-text-size
+        title: Scripture text font size
+        description: Font size for Scripture text in the sidebar
+        type: variable-number-slider
+        default: 1
+        min: 0.75
+        max: 1.75
+        step: 0.05
+        format: em
+    -
+        id: scripture-sidebar-line-height
+        title: Scripture text line height
+        description: CSS line height for Scripture text in the sidebar
+        type: variable-text
+        default: var(--line-height-normal)
+    -
+        id: scripture-sidebar-content-width
+        title: Scripture text maximum width
+        description: Maximum prose line length; ch units scale with the selected font and size
+        type: variable-text
+        default: 65ch
+    -
+        id: scripture-sidebar-text-alignment
+        title: Scripture text alignment
+        description: Align prose text to the left or justify it; poetry remains left-aligned
+        type: class-select
+        allowEmpty: false
+        default: scripture-sidebar-text-left
+        options:
+            -
+                label: Left
+                value: scripture-sidebar-text-left
+            -
+                label: Justified
+                value: scripture-sidebar-text-justified
+    -
+        id: scripture-sidebar-reading-padding
+        title: Reading area padding
+        description: Padding around Scripture text in the sidebar
+        type: variable-number-slider
+        default: 1
+        min: 0
+        max: 3
+        step: 0.125
+        format: rem
+    -
+        id: scripture-sidebar-paragraph-spacing
+        title: Paragraph spacing
+        description: Space after prose paragraphs and poetry blocks
+        type: variable-number-slider
+        default: 1
+        min: 0
+        max: 3
+        step: 0.125
+        format: em
+    -
+        id: scripture-sidebar-poetry-indent
+        title: Poetry indentation
+        description: Additional indentation for poetry blocks
+        type: variable-number-slider
+        default: 1
+        min: 0
+        max: 4
+        step: 0.125
+        format: em
+    -
+        id: scripture-sidebar-gutter-width
+        title: Verse number gutter width
+        description: Width of the verse number gutter in the sidebar
+        type: variable-number-slider
+        default: 1.75
+        min: 1
+        max: 4
+        step: 0.25
+        format: em
+    -
         id: scripture-list-heading
         title: Scripture List
         type: heading
@@ -224,12 +323,26 @@ settings:
     --bible-heading-indent: 0.875em;
     --bible-chapter-heading-font: "Equity Caps A", serif;
     --bible-chapter-heading-size: 0.75em;
+    --scripture-sidebar-reading-padding: 1rem;
+    --scripture-sidebar-paragraph-spacing: 1em;
+    --scripture-sidebar-poetry-indent: 1em;
+    --scripture-sidebar-gutter-width: 1.75em;
     --scripture-list-reference-font: inherit;
     --scripture-list-reference-size: 1em;
     --scripture-list-text-font: inherit;
     --scripture-list-text-size: 1em;
     --scripture-list-highlight-background-color: var(--color-red);
     --scripture-list-highlight-outline-color: var(--color-red);
+}
+
+body {
+    --scripture-sidebar-reference-font: var(--h3-font, var(--font-text));
+    --scripture-sidebar-reference-size: var(--h3-size, 1.3em);
+    --scripture-sidebar-reference-color: var(--h3-color, var(--text-normal));
+    --scripture-sidebar-text-font: var(--font-text);
+    --scripture-sidebar-text-size: 1em;
+    --scripture-sidebar-line-height: var(--line-height-normal);
+    --scripture-sidebar-content-width: 65ch;
 }
 
 /* ‼️ HIDE THE VERSES SECTION */
@@ -405,6 +518,10 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 /* Scripture sidebar */
+.workspace-leaf-content[data-type="scripture-sidebar"] {
+	container-type: inline-size;
+}
+
 .scripture-sidebar-view {
 	display: flex;
 	flex-direction: column;
@@ -413,54 +530,198 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 .scripture-sidebar-toolbar {
+	--scripture-sidebar-responsive-reference-size: var(--scripture-sidebar-reference-size);
 	display: grid;
-	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(4.5rem, 0.55fr) auto;
+	grid-template-columns: minmax(var(--input-height), 1fr) minmax(0, max-content) minmax(var(--input-height), 1fr);
 	gap: var(--size-4-2);
-	align-items: end;
+	align-items: center;
 	padding: var(--size-4-2);
 	border-bottom: var(--border-width) solid var(--background-modifier-border);
 	background: var(--background-secondary);
 	z-index: var(--layer-cover);
 }
 
-.scripture-sidebar-control {
+.scripture-sidebar-reference-form {
 	display: flex;
+	align-items: center;
+	grid-column: 2;
+	justify-self: center;
 	min-width: 0;
-	flex-direction: column;
-	gap: var(--size-2-1);
+	max-width: 100%;
+	color: var(--scripture-sidebar-reference-color);
+	font-family: var(--scripture-sidebar-reference-font);
+	font-size: var(--font-text-size);
+	font-weight: var(--h3-weight, var(--font-semibold));
+	font-style: var(--h3-style);
+	font-variant: var(--h3-variant);
+	line-height: var(--h3-line-height, 1.3);
+	letter-spacing: var(--h3-letter-spacing);
 }
 
-.scripture-sidebar-control-label {
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
+.scripture-sidebar-reference-input-shell {
+	display: inline-grid;
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	font-size: var(--scripture-sidebar-responsive-reference-size);
 }
 
-.scripture-sidebar-control select {
-	width: 100%;
+.scripture-sidebar-reference-input-shell::after {
+	content: attr(data-value);
+	visibility: hidden;
+	grid-area: 1 / 1;
 	min-width: 0;
+	padding: var(--size-2-1) 0 var(--size-2-1) var(--size-4-2);
+	border: var(--border-width) solid transparent;
+	font: inherit;
+	letter-spacing: inherit;
+	white-space: pre;
+	pointer-events: none;
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-toolbar .scripture-sidebar-reference-input {
+	grid-area: 1 / 1;
+	width: 0;
+	min-width: 100%;
+	height: auto;
+	padding: var(--size-2-1) 0 var(--size-2-1) var(--size-4-2);
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
+	text-overflow: ellipsis;
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-toolbar .scripture-sidebar-reference-input:hover {
+	background: var(--background-modifier-hover);
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-toolbar .scripture-sidebar-reference-input:focus {
+	border-color: var(--background-modifier-border-focus);
+	background: var(--background-modifier-form-field);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.scripture-sidebar-translation-control {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	font-size: var(--scripture-sidebar-responsive-reference-size);
+	white-space: nowrap;
+}
+
+.scripture-sidebar-translation-separator {
+	white-space: pre;
+	pointer-events: none;
+}
+
+.scripture-sidebar-reference-suggestion {
+	display: flex;
+	align-items: center;
+	min-height: var(--input-height);
+	overflow: hidden;
+	font-family: var(--font-interface);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-reference-form .scripture-sidebar-translation {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	height: auto;
+	min-width: 0;
+	padding: var(--size-2-1) var(--size-2-2) var(--size-2-1) 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
+	white-space: nowrap;
+	cursor: var(--cursor-link);
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-reference-form .scripture-sidebar-translation:hover {
+	background: var(--background-modifier-hover);
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-reference-form .scripture-sidebar-translation:focus-visible {
+	background: var(--background-modifier-hover);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.scripture-sidebar-paste {
+	display: none;
+	flex: 0 0 auto;
+}
+
+.scripture-sidebar-toolbar-mobile .scripture-sidebar-paste.is-visible {
+	display: inline-flex;
 }
 
 .scripture-sidebar-navigation {
 	display: flex;
+	flex: 0 0 auto;
 	gap: var(--size-2-1);
+}
+
+.scripture-sidebar-navigation-previous {
+	grid-column: 1;
+	justify-self: start;
+}
+
+.scripture-sidebar-navigation-next {
+	grid-column: 3;
+	justify-self: end;
+}
+
+@container (max-width: 30rem) {
+	.scripture-sidebar-toolbar {
+		--scripture-sidebar-responsive-reference-size:
+			min(
+				var(--scripture-sidebar-reference-size),
+				max(var(--font-ui-medium, 15px), 5cqi)
+			);
+	}
 }
 
 .scripture-sidebar-reading {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
-	padding: var(--size-4-4);
-	line-height: var(--line-height-normal);
+	padding: var(--scripture-sidebar-reading-padding);
+	font-size: var(--font-text-size);
+	cursor: text;
+	-webkit-user-select: text;
+	user-select: text;
 }
 
-.scripture-sidebar-reading h2 {
-	margin-block-start: 0;
+.scripture-sidebar-reading-content {
+	width: 100%;
+	max-width: calc(var(--scripture-sidebar-content-width) + var(--scripture-sidebar-gutter-width));
+	margin-inline: auto;
+	font-family: var(--scripture-sidebar-text-font);
+	font-size: var(--scripture-sidebar-text-size);
+	line-height: var(--scripture-sidebar-line-height);
+}
+
+.workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-view .scripture-sidebar-reading {
+	-webkit-user-select: text;
+	user-select: text;
 }
 
 .scripture-sidebar-paragraph {
 	position: relative;
-	padding-inline-start: var(--bible-gutter-width);
-	margin-block: 0 1em;
+	padding-inline-start: var(--scripture-sidebar-gutter-width);
+	margin-block: 0 var(--scripture-sidebar-paragraph-spacing);
+}
+
+.scripture-sidebar-text-justified .scripture-sidebar-paragraph {
+	text-align: justify;
+	text-justify: inter-word;
 }
 
 .scripture-sidebar-reading .scripture-sidebar-paragraph .scripture-sidebar-verse sup,
@@ -476,12 +737,13 @@ body:not(.bible-text-justify) .bible .cm-line {
 }
 
 .scripture-sidebar-poetry {
-	margin: 0 0 1em var(--size-4-4);
+	margin: 0 0 var(--scripture-sidebar-paragraph-spacing) var(--scripture-sidebar-poetry-indent);
+	text-align: left;
 }
 
 .scripture-sidebar-poetry-line {
 	position: relative;
-	padding-inline-start: var(--bible-gutter-width);
+	padding-inline-start: var(--scripture-sidebar-gutter-width);
 	display: block;
 }
 
@@ -492,7 +754,7 @@ body:not(.bible-text-justify) .bible .cm-line {
 	position: absolute;
 	left: 0;
 	top: var(--bible-verse-top-offset);
-	width: var(--bible-gutter-width);
+	width: var(--scripture-sidebar-gutter-width);
 	padding-right: 0.4em;
 	text-align: right;
 }
@@ -514,14 +776,11 @@ body:not(.bible-text-justify) .bible .cm-line {
 	color: var(--text-warning);
 }
 
-@media (max-width: 700px) {
-	.scripture-sidebar-toolbar {
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	}
-
-	.scripture-sidebar-navigation {
-		justify-content: flex-end;
-	}
+.is-mobile .scripture-sidebar-toolbar button,
+.is-mobile .scripture-sidebar-toolbar select,
+.is-mobile .scripture-sidebar-reference-suggestion {
+	min-width: 44px;
+	min-height: 44px;
 }
 
 /* ‼️ NOTE TOOLBAR */
