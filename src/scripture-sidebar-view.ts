@@ -130,7 +130,16 @@ export class ScriptureSidebarView extends ItemView {
 			|| settings.translations[0];
 		this.state.translation = selectedTranslation?.name || '';
 
+		let bibleData: BibleData | null = null;
+		if (selectedTranslation) {
+			this.contentEl.setAttribute('aria-busy', 'true');
+			bibleData = await this.dataLoader.loadTranslation(selectedTranslation);
+			if (version !== this.renderVersion) return;
+		}
+
+		this.contentEl.removeAttribute('aria-busy');
 		this.contentEl.empty();
+		this.readingEl = null;
 		this.referenceInputEl = null;
 		const toolbarClasses = ['scripture-sidebar-toolbar'];
 		if (Platform.isMobile) toolbarClasses.push('scripture-sidebar-toolbar-mobile');
@@ -150,8 +159,6 @@ export class ScriptureSidebarView extends ItemView {
 			return;
 		}
 
-		const bibleData = await this.dataLoader.loadTranslation(selectedTranslation);
-		if (version !== this.renderVersion) return;
 		if (!bibleData) {
 			const errorKey = `${selectedTranslation.name}:${selectedTranslation.filePath}`;
 			if (this.lastLoadError !== errorKey) {
