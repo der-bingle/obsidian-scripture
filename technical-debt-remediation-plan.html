@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scripture plugin — technical debt remediation plan</title>
+  <style>
+    :root {
+      --paper: #f4f0e8;
+      --panel: #fffdf8;
+      --ink: #17202a;
+      --muted: #5e6872;
+      --line: #c9c2b5;
+      --navy: #17324d;
+      --blue: #1d5d87;
+      --green: #2f6b4f;
+      --amber: #9b5c12;
+      --red: #9b3a35;
+      --code: #10202d;
+      --code-ink: #e6edf2;
+      --radius: 8px;
+      --shadow: 0 12px 32px rgba(23, 32, 42, 0.08);
+      --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --serif: Charter, "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23, 50, 77, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 100% 24px;
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    a { color: var(--blue); }
+    a:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 3px solid #e09c3a;
+      outline-offset: 3px;
+    }
+
+    .masthead {
+      color: #f8fbfd;
+      background: var(--navy);
+      border-bottom: 5px solid #d89b3c;
+    }
+
+    .masthead-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 48px 28px 38px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: #b8d2e5;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { line-height: 1.15; }
+    h1 {
+      max-width: 920px;
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(2.25rem, 6vw, 4.6rem);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+    }
+
+    .lede {
+      max-width: 840px;
+      margin: 20px 0 0;
+      color: #d7e3eb;
+      font-size: 1.08rem;
+    }
+
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .meta-pill {
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 999px;
+      color: #eef5f8;
+      font-family: var(--mono);
+      font-size: 0.76rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 34px;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px 28px 80px;
+    }
+
+    nav {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      padding: 18px;
+      background: rgba(255,253,248,0.92);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    nav strong {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--navy);
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    nav a {
+      display: block;
+      padding: 6px 0;
+      color: var(--ink);
+      font-size: 0.86rem;
+      text-decoration: none;
+    }
+
+    nav a:hover { color: var(--blue); text-decoration: underline; }
+    main { min-width: 0; }
+
+    section {
+      margin-bottom: 24px;
+      padding: 28px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      color: var(--navy);
+      font-family: var(--serif);
+      font-size: clamp(1.65rem, 3vw, 2.35rem);
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 26px 0 10px;
+      color: var(--navy);
+      font-size: 1.1rem;
+    }
+
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 1.3rem; }
+    li + li { margin-top: 7px; }
+    code {
+      padding: 0.12em 0.35em;
+      background: #e9e3d8;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.9em;
+    }
+
+    pre {
+      overflow: auto;
+      margin: 14px 0 0;
+      padding: 18px;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: var(--radius);
+      font: 0.84rem/1.55 var(--mono);
+    }
+
+    pre code { padding: 0; color: inherit; background: transparent; }
+
+    .verdict {
+      padding: 20px 22px;
+      background: #edf4f8;
+      border-left: 5px solid var(--blue);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 1.02rem;
+    }
+
+    .warning {
+      padding: 16px 18px;
+      background: #fff5e6;
+      border: 1px solid #dfbb83;
+      border-radius: var(--radius);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 17px;
+      background: #faf7f1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .card h3 { margin-top: 0; }
+    .big-number {
+      display: block;
+      color: var(--navy);
+      font-family: var(--serif);
+      font-size: 2.3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .small-label {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--navy);
+      background: #eee9df;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 3px 7px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      font-weight: 700;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    .do { color: var(--green); }
+    .contain { color: var(--amber); }
+    .decide { color: var(--blue); }
+    .urgent { color: var(--red); }
+
+    .rail {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      gap: 16px;
+      padding: 20px;
+      background: #faf7f1;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--navy);
+      border-radius: var(--radius);
+    }
+
+    .phase-id {
+      color: var(--blue);
+      font: 700 1rem var(--mono);
+    }
+
+    .phase h3 { margin: 0 0 7px; }
+    .phase p { color: var(--muted); }
+    .phase ul { margin-bottom: 0; }
+
+    .path {
+      overflow-wrap: anywhere;
+      color: #17324d;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+
+    details {
+      margin-top: 12px;
+      border-top: 1px dashed var(--line);
+    }
+
+    summary {
+      padding-top: 12px;
+      color: var(--blue);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      padding: 9px 13px;
+      color: #fff;
+      background: var(--navy);
+      border: 0;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover { background: var(--blue); }
+    .footnote { color: var(--muted); font-size: 0.85rem; }
+
+    footer {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 28px 42px;
+      color: var(--muted);
+      font: 0.78rem var(--mono);
+    }
+
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: static; }
+      nav a { display: inline-block; margin-right: 12px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .masthead-inner, .layout { padding-left: 18px; padding-right: 18px; }
+      section { padding: 21px 18px; }
+      .phase { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .masthead { color: #000; background: #fff; border-bottom: 2px solid #000; }
+      .lede, .eyebrow, .meta-pill { color: #222; }
+      .meta-pill { border-color: #555; }
+      .layout { display: block; max-width: none; padding: 18px; }
+      nav, .actions { display: none; }
+      section { break-inside: avoid; box-shadow: none; }
+      .phase { break-inside: avoid; }
+      a { color: #000; text-decoration: none; }
+      pre { white-space: pre-wrap; color: #000; background: #eee; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <p class="eyebrow">Obsidian Scripture · implementation plan · commit 2203377</p>
+      <h1>Retire the debt without breaking the plugin</h1>
+      <p class="lede">A staged plan for every remaining item in <code>TECHNICAL-DEBT.md</code>, checked against the live code, the local <code>obsidian-dev</code> and <code>obsidian-ops</code> guidance, and the installed Obsidian 1.12.3 type surface.</p>
+      <div class="meta-strip" aria-label="Plan metadata">
+        <span class="meta-pill">7 reviewable changesets</span>
+        <span class="meta-pill">No command ID changes</span>
+        <span class="meta-pill">Keep minAppVersion 1.9.0</span>
+        <span class="meta-pill">Desktop + mobile gates</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav aria-label="Plan sections">
+      <strong>Contents</strong>
+      <a href="#recommendation">Recommendation</a>
+      <a href="#baseline">Verified baseline</a>
+      <a href="#inventory">Debt inventory</a>
+      <a href="#sequence">Change sequence</a>
+      <a href="#compatibility">Compatibility decisions</a>
+      <a href="#css">CSS test matrix</a>
+      <a href="#release">Release design</a>
+      <a href="#done">Definition of done</a>
+    </nav>
+
+    <main>
+      <section id="recommendation">
+        <h2>Recommendation</h2>
+        <div class="verdict">
+          Split behavior first, then change behavior. Begin with release/version guardrails, extract the two oversized modules behind stable facades, and only then tackle compatibility shims and CSS. Do not raise <code>minAppVersion</code> during the refactor, and do not remove the legacy API alias before 1.0.
+        </div>
+        <p>The important wrinkle is that two debt items cannot honestly be “fixed” today. The installed Obsidian API exposes <code>MarkdownView.getMode()</code> but no public mode setter, and it exposes <code>getDisplayText()</code> but no public title setter or header refresh. Those hacks should be isolated, feature-detected, and made failure-safe until supported APIs exist.</p>
+        <div class="warning"><strong>Immediate regression:</strong> the repository reports version <code>0.7.0</code> everywhere except both root version fields in <code>package-lock.json</code>, which remain <code>0.6.2</code>. This belongs in the first changeset and needs a CI check so it cannot recur.</div>
+      </section>
+
+      <section id="baseline">
+        <h2>Verified baseline</h2>
+        <div class="grid">
+          <div class="card"><span class="big-number">900</span><span class="small-label">lines in src/main.ts</span></div>
+          <div class="card"><span class="big-number">1,292</span><span class="small-label">lines in scripture-list-renderer.ts</span></div>
+          <div class="card"><span class="big-number">631</span><span class="small-label">lines in settings.ts</span></div>
+          <div class="card"><span class="big-number">21</span><span class="small-label">tests passing in 7 files</span></div>
+          <div class="card"><span class="big-number">0</span><span class="small-label">npm audit vulnerabilities</span></div>
+          <div class="card"><span class="big-number">2</span><span class="small-label">release authorities today</span></div>
+        </div>
+        <h3>Current checks</h3>
+        <p><code>npm run check</code> passes: lint, all tests, strict type-check, and the production bundle. The worktree was clean before this plan file was created.</p>
+        <h3>Current compatibility evidence</h3>
+        <ul>
+          <li><code>node_modules/obsidian</code> is version <code>1.12.3</code>.</li>
+          <li><code>SettingGroup</code> exists only from Obsidian 1.11.0; the project supports 1.9.0.</li>
+          <li>The declarative settings API described by the local guidance is not present in the installed types and is associated with Obsidian 1.13+.</li>
+          <li>The existing test vault and smoke note are available at <span class="path">/Users/luke/Code/Obsidian/test-vault</span>.</li>
+        </ul>
+      </section>
+
+      <section id="inventory">
+        <h2>Debt inventory and disposition</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Issue</th><th>Disposition</th><th>Completion signal</th></tr></thead>
+            <tbody>
+              <tr><td>Split <code>src/main.ts</code></td><td><span class="status do">Implement</span></td><td>Lifecycle shell only; commands, note service, settings store, list registration, and API factory extracted.</td></tr>
+              <tr><td>Split <code>scripture-list-renderer.ts</code></td><td><span class="status do">Implement</span></td><td>Lookup, source mutation, DOM rendering, clipboard, and editor navigation have explicit boundaries.</td></tr>
+              <tr><td>Split settings definitions from UI coordination</td><td><span class="status do">Implement</span></td><td>Small setting-tab shell; translation modal and focused sections live separately.</td></tr>
+              <tr><td>Internal <code>MarkdownView.setMode</code></td><td><span class="status contain">Contain</span></td><td>One adapter owns the cast, validates availability, and fails with a notice instead of throwing.</td></tr>
+              <tr><td>Title method/header overrides</td><td><span class="status contain">Contain</span></td><td>One reversible adapter owns patch/unpatch; upstream API availability is rechecked on Obsidian dependency updates.</td></tr>
+              <tr><td>Legacy <code>plugins['scripture'].api</code> alias</td><td><span class="status decide">Deprecate, retain</span></td><td>Canonical ID documented now; alias remains through 1.0 unless the user explicitly approves an earlier break.</td></tr>
+              <tr><td>Declarative settings / newer minimum</td><td><span class="status decide">Defer</span></td><td>Keep 1.9.0 during debt work; evaluate 1.13+ in a separate compatibility release.</td></tr>
+              <tr><td>Remaining <code>:has()</code> and <code>!important</code></td><td><span class="status do">Audit + replace</span></td><td>Each selector is tested across modes/themes/mobile; zero remains unless a documented fixture proves necessity.</td></tr>
+              <tr><td>Two release workflows</td><td><span class="status do">Consolidate</span></td><td>One workflow owns validation, build, attestation, tag handling, and release upload.</td></tr>
+              <tr><td>Attestation and version agreement</td><td><span class="status urgent">First</span></td><td>CI rejects drift across package, lockfile, manifest, versions map, and tag; assets are attested.</td></tr>
+              <tr><td>Direct-to-default release commits</td><td><span class="status do">Remove</span></td><td>Release automation never edits or pushes the default branch.</td></tr>
+              <tr><td>Live <code>package-lock.json</code> version drift</td><td><span class="status urgent">First</span></td><td>Both lockfile version fields read 0.7.0 and the guard catches a deliberate mismatch fixture.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="sequence">
+        <h2>Implementation sequence</h2>
+        <p>Each phase is intended to be a separate reviewable commit or pull request. Release operations and architecture become independent after Phase 1, but keeping this order makes regressions easier to localize.</p>
+        <div class="rail">
+          <article class="phase">
+            <div class="phase-id">01</div>
+            <div>
+              <h3>Install guardrails before moving code</h3>
+              <p>Close the live version drift and stop release automation from manufacturing another one.</p>
+              <ul>
+                <li>Add <code>scripts/check-version-consistency.mjs</code> to compare <code>package.json</code>, both lockfile version fields, <code>manifest.json</code>, the newest <code>versions.json</code> entry, and an optional release tag.</li>
+                <li>Add <code>check:versions</code> to <code>package.json</code> and include it in <code>npm run check</code>.</li>
+                <li>Regenerate only lockfile metadata so it records 0.7.0; do not change dependency resolution.</li>
+                <li>Consolidate release automation as described below; delete <code>manual-release.yaml</code> after parity is proven.</li>
+              </ul>
+              <details><summary>Acceptance</summary><p>A deliberate mismatch makes local and CI checks fail with the exact files/values; normal <code>npm run check</code> passes; neither release trigger commits to the default branch.</p></details>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">02</div>
+            <div>
+              <h3>Characterize and split Scripture list behavior</h3>
+              <p>Keep <code>scripture-list-renderer.ts</code> as a temporary facade so <code>main.ts</code> and Markdown registration do not churn at the same time.</p>
+              <ul>
+                <li><code>scripture-list-lookup.ts</code>: translation suffix parsing, reference detection, verse lookup, testament/book enrichment.</li>
+                <li><code>scripture-list-source.ts</code>: normalization, sorting, range resolution, and vault <code>process()</code> mutations.</li>
+                <li><code>scripture-list-view.ts</code>: DOM rendering and fold-state presentation only.</li>
+                <li><code>scripture-list-clipboard.ts</code>: clipboard input expansion and callout copy.</li>
+                <li><code>scripture-list-editor.ts</code>: locating the owning view, switching modes, cursor placement, and retry timing.</li>
+              </ul>
+              <details><summary>Tests added before extraction</summary><p>Translation suffixes; invalid/missing translations; chapter and range lookup; normalization and testament gaps; codeblock range selection with multiple fences; comma-separated paste expansion; copy-callout formatting. Keep DOM and Obsidian effects behind injected interfaces.</p></details>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">03</div>
+            <div>
+              <h3>Reduce main.ts to the plugin shell</h3>
+              <p>Move one responsibility at a time while preserving every released command ID, URI parameter, Markdown format, settings key, and API method.</p>
+              <ul>
+                <li><code>commands.ts</code>: registers commands from a typed dependency object; command callbacks remain behaviorally identical.</li>
+                <li><code>scripture-note-service.ts</code>: parse, resolve, format, and open Scripture note targets.</li>
+                <li><code>plugin-settings-store.ts</code>: load, migrate, validate cross-setting invariants, save, and notify components.</li>
+                <li><code>scripture-list-processor.ts</code>: Markdown processor registration and orchestration.</li>
+                <li><code>public-api.ts</code>: builds the frozen <code>ScriptureAPI</code> facade and owns registry compatibility.</li>
+              </ul>
+              <p><strong>Target:</strong> <code>src/main.ts</code> at roughly 200–300 lines, containing lifecycle wiring and cleanup rather than feature algorithms.</p>
+              <details><summary>Acceptance</summary><p>All existing command IDs and URI aliases are asserted; <code>ScriptureAPI</code> retains the same method names and return shapes; settings migration tests still pass; no circular import from services back into the plugin class.</p></details>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">04</div>
+            <div>
+              <h3>Split settings without raising the minimum version</h3>
+              <p>Use the supported imperative <code>Setting</code> API for 1.9.0. Do not build a home-grown declarative framework that will be thrown away later.</p>
+              <ul>
+                <li>Keep <code>settings.ts</code> as a small re-export or registration surface.</li>
+                <li>Move translation list + <code>TranslationModal</code>, insertion/link sections, callout/list sections, and note/sidebar sections into focused modules under <code>src/settings/</code>.</li>
+                <li>Pass a narrow settings controller interface instead of importing the concrete <code>Scripture</code> class into every settings module.</li>
+                <li>Keep defaults and persisted types in <code>types.ts</code>; keep schema migrations pure in <code>settings-migrations.ts</code>.</li>
+              </ul>
+              <details><summary>Acceptance</summary><p>All current controls appear in the same order with the same sentence-case text and dynamic visibility; translation add/edit/remove/validate and every immediate-refresh behavior work in the test vault.</p></details>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">05</div>
+            <div>
+              <h3>Contain compatibility shims and record policy decisions</h3>
+              <ul>
+                <li>Create a mode controller whose public contract is <code>ensureSourceMode(view): Promise&lt;boolean&gt;</code>. The current cast exists only inside it.</li>
+                <li>Create a title adapter that captures, applies, refreshes, and restores method overrides atomically. If Obsidian internals disappear, disable custom titles without destabilizing leaves.</li>
+                <li>Document <code>obsidian-scripture</code> as the canonical registry ID and mark <code>scripture</code> as deprecated-but-supported through 1.0.</li>
+                <li>Record the min-version decision: remain on 1.9.0; reassess declarative settings only when a separate release intentionally targets 1.13+.</li>
+              </ul>
+              <details><summary>Acceptance</summary><p>No internal cast or method reassignment exists outside the two adapters. Unload always restores patched titles and clears timers. Missing internals produce a concise user-facing fallback rather than an exception.</p></details>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">06</div>
+            <div>
+              <h3>Replace CSS debt with measured selectors</h3>
+              <p>Work selector group by selector group; capture the DOM shape first, change one group, then run the matrix below.</p>
+              <ul>
+                <li>Prefer direct child/sibling targeting for <code>sup</code> before adding JavaScript marker classes.</li>
+                <li>Where parent state is genuinely required, let <code>BibleVerseDisplayManager</code> add plugin-prefixed marker classes to the owning view and clean them up.</li>
+                <li>Replace <code>!important</code> using scoped specificity anchored to <code>.bible</code>, view-mode wrappers, or <code>.scripture-sidebar-reading</code>.</li>
+                <li>Keep an exception only when a named fixture fails without it, and document why the competing Obsidian/theme declaration cannot be beaten safely.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="phase">
+            <div class="phase-id">07</div>
+            <div>
+              <h3>Cross-platform validation and debt closure</h3>
+              <ul>
+                <li>Run <code>npm run check</code> after every phase and once from a clean install.</li>
+                <li>Smoke-test the full AGENTS.md list in the existing desktop test vault.</li>
+                <li>Copy real <code>main.js</code>, <code>manifest.json</code>, and <code>styles.css</code> files—not the symlink—to a mobile-synced vault and repeat the mobile subset.</li>
+                <li>Update <code>TECHNICAL-DEBT.md</code>: remove completed items; keep only upstream-blocked adapters with the API/version trigger for re-evaluation.</li>
+              </ul>
+              <details><summary>Exit evidence</summary><p>Attach the completed smoke matrix, final selector counts, file line counts, version-check output, build hashes, and attestation dry-run evidence. Do not create a tag or release without separate user authorization.</p></details>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="compatibility">
+        <h2>Compatibility decisions</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Question</th><th>Decision</th><th>Reason</th></tr></thead>
+            <tbody>
+              <tr><td>Raise <code>minAppVersion</code> now?</td><td><strong>No.</strong> Stay at 1.9.0.</td><td>Architecture cleanup does not require a user-facing compatibility break. <code>SettingGroup</code> begins at 1.11 and declarative settings later still.</td></tr>
+              <tr><td>Replace <code>setMode</code> now?</td><td>Isolate, do not pretend.</td><td>The current installed public types have no setter. A wrapper creates one future replacement point and a safe fallback.</td></tr>
+              <tr><td>Replace tab-title overrides now?</td><td>Isolate and recheck upstream.</td><td>Public title getters exist, but no public title mutation/refresh API exists.</td></tr>
+              <tr><td>Remove the short API alias?</td><td>Deprecate in docs; retain through 1.0.</td><td>There is no usage telemetry, and removal is a known compatibility break. Canonical access can be taught without breaking consumers.</td></tr>
+              <tr><td>Refactor and redesign together?</td><td>No.</td><td>First extraction changes module boundaries; later phases change APIs/CSS. Reviewers should never have to prove both at once.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="css">
+        <h2>CSS validation matrix</h2>
+        <p>The current stylesheet has seven <code>!important</code> rule groups and six logical <code>:has()</code> rule groups. Treat each row below as a required fixture, not a casual visual glance.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Surface</th><th>Modes</th><th>Content</th><th>Environments</th></tr></thead>
+            <tbody>
+              <tr><td>Bible note gutter</td><td>Live Preview, reading, source</td><td>Prose, headings, chapter intro</td><td>Default + Minimal; light + dark</td></tr>
+              <tr><td>Verse numbers: none</td><td>Live Preview, reading</td><td>Single and multi-verse paragraphs</td><td>Desktop + mobile</td></tr>
+              <tr><td>Verse numbers: first</td><td>Live Preview, reading</td><td>Prose and poetry with hard breaks</td><td>Desktop + mobile</td></tr>
+              <tr><td>Verse numbers: all</td><td>Live Preview, reading</td><td>Prose and poetry with hard breaks</td><td>Desktop + mobile</td></tr>
+              <tr><td>Scripture sidebar</td><td>Left and right leaf</td><td>None, first, all</td><td>Narrow and wide widths</td></tr>
+              <tr><td>Note toolbar callout</td><td>Live Preview, reading</td><td>Short and wrapped labels</td><td>Default + Minimal</td></tr>
+              <tr><td>Scripture list</td><td>Live Preview, reading</td><td>Folded, highlighted, errors</td><td>Desktop + mobile</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="footnote">Pass criteria: no overlap, no gutter jump during mode switch, no hidden prose, no unscoped change outside Bible notes, and no meaningful layout difference from the pre-change baseline.</p>
+      </section>
+
+      <section id="release">
+        <h2>Canonical release design</h2>
+        <p>Use a single <code>.github/workflows/release.yaml</code> with tag push and manual dispatch as entry points to the same job. Manual dispatch selects an already-versioned ref; it does not bump files or push a commit.</p>
+        <pre><code>versioned source commit
+        │
+        ├── tag push: tag must equal manifest/package/lock/versions
+        │
+        └── manual dispatch: selected ref must already be version-consistent
+                         │
+                         ▼
+                npm ci → npm run check
+                         │
+                         ▼
+          verify main.js + manifest.json + styles.css
+                         │
+                         ▼
+        actions/attest-build-provenance@v2 (all 3 files)
+                         │
+                         ▼
+            create or update the matching GitHub release</code></pre>
+        <h3>Required workflow properties</h3>
+        <ul>
+          <li>Permissions: <code>contents: write</code>, <code>id-token: write</code>, <code>attestations: write</code>.</li>
+          <li><code>npm ci</code> and pinned Node version; production bundle with no inline source map.</li>
+          <li>Version validator runs before any tag/release mutation.</li>
+          <li>Manual prerelease and notes inputs may be retained, but file mutation and <code>git push</code> are removed.</li>
+          <li>Required release assets remain exactly <code>main.js</code>, <code>manifest.json</code>, and <code>styles.css</code>.</li>
+        </ul>
+      </section>
+
+      <section id="done">
+        <h2>Definition of done</h2>
+        <ol>
+          <li><code>npm run check</code> passes from a clean install, including version consistency.</li>
+          <li>No released command ID, setting key, <code>scriptureList</code> syntax, callout Markdown, URI parameter, or <code>ScriptureAPI</code> method changes.</li>
+          <li><code>main.ts</code>, the Scripture list facade, and settings shell each have one clear responsibility; pure logic has focused unit tests.</li>
+          <li>Unsupported Obsidian internals exist only in two documented adapters and fail safely.</li>
+          <li>The API alias and minimum-version decisions are documented with explicit future review triggers.</li>
+          <li>CSS selector debt is eliminated or each remaining exception has fixture-backed evidence.</li>
+          <li>One release workflow validates versions, builds reproducibly, attests all assets, and never commits to the default branch.</li>
+          <li>Desktop and mobile smoke matrices pass, and <code>TECHNICAL-DEBT.md</code> reflects only genuinely upstream-blocked work.</li>
+        </ol>
+
+        <div class="actions">
+          <button id="copy-plan" type="button">Copy phase checklist</button>
+          <button id="print-plan" type="button">Print / save as PDF</button>
+        </div>
+        <pre id="checklist" aria-label="Copyable phase checklist"><code>1. Version guardrails + one release authority
+2. Characterize and split Scripture list behavior
+3. Reduce main.ts to lifecycle wiring
+4. Split settings on the existing 1.9-compatible API
+5. Contain compatibility shims; retain deprecated API alias
+6. Audit and replace :has() / !important by fixture
+7. Run desktop/mobile QA and close resolved debt</code></pre>
+      </section>
+    </main>
+  </div>
+
+  <footer>Last updated: 2026-07-02 11:10 CDT · Repository: /Users/luke/Code/obsidian/scripture · Baseline commit: 2203377</footer>
+
+  <script>
+    const copyButton = document.getElementById('copy-plan');
+    const printButton = document.getElementById('print-plan');
+    const checklist = document.getElementById('checklist');
+
+    copyButton.addEventListener('click', async () => {
+      const text = checklist.textContent || '';
+      await navigator.clipboard.writeText(text.trim());
+      copyButton.textContent = 'Copied';
+      window.setTimeout(() => { copyButton.textContent = 'Copy phase checklist'; }, 1200);
+    });
+
+    printButton.addEventListener('click', () => window.print());
+  </script>
+</body>
+</html>
