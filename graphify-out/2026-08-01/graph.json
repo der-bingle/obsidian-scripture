@@ -72,7 +72,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "bible-data-validation.test.ts",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "tests_bible_data_validation_test"
     },
     {
@@ -83,7 +83,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "validbible",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "tests_bible_data_validation_test_validbible"
     },
     {
@@ -94,7 +94,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "reference-format.test.ts",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "tests_reference_format_test"
     },
     {
@@ -105,7 +105,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "verse()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "tests_reference_format_test_verse"
     },
     {
@@ -347,7 +347,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "bible-data-loader.ts",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader"
     },
     {
@@ -358,7 +358,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "bibledataloader",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader"
     },
     {
@@ -369,7 +369,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".constructor()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader_constructor"
     },
     {
@@ -380,7 +380,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".loadtranslation()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader_loadtranslation"
     },
     {
@@ -391,7 +391,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".validatetranslation()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader_validatetranslation"
     },
     {
@@ -402,7 +402,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".getloadedtranslation()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader_getloadedtranslation"
     },
     {
@@ -413,7 +413,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".clearcache()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_loader_bibledataloader_clearcache"
     },
     {
@@ -424,7 +424,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "bible-data-validation.ts",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation"
     },
     {
@@ -435,7 +435,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "bibledatavalidationresult",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_bibledatavalidationresult"
     },
     {
@@ -446,7 +446,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "isrecord()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_isrecord"
     },
     {
@@ -457,7 +457,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "isnonemptystring()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_isnonemptystring"
     },
     {
@@ -468,7 +468,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "isnonnegativeinteger()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_isnonnegativeinteger"
     },
     {
@@ -479,7 +479,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "ispositiveinteger()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_ispositiveinteger"
     },
     {
@@ -490,7 +490,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "invalid()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_invalid"
     },
     {
@@ -501,7 +501,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "validatebibledata()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_validatebibledata"
     },
     {
@@ -512,7 +512,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": "isbibledata()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_bible_data_validation_isbibledata"
     },
     {
@@ -1018,7 +1018,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "reference-format.ts",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format"
     },
     {
@@ -1029,7 +1029,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "referencedisplayoptions",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_referencedisplayoptions"
     },
     {
@@ -1040,7 +1040,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "standard_book_abbreviations",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_standard_book_abbreviations"
     },
     {
@@ -1051,7 +1051,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "formatreferencedisplay()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_formatreferencedisplay"
     },
     {
@@ -1062,7 +1062,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "getbookdisplayname()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_getbookdisplayname"
     },
     {
@@ -1073,7 +1073,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "formatchapterdisplay()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_formatchapterdisplay"
     },
     {
@@ -1084,7 +1084,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "shouldincludetranslation()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_shouldincludetranslation"
     },
     {
@@ -1095,7 +1095,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "getenglishabbreviation()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_getenglishabbreviation"
     },
     {
@@ -1106,7 +1106,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "buildenglishabbrevmap()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_buildenglishabbrevmap"
     },
     {
@@ -1117,7 +1117,7 @@
       "_origin": "ast",
       "community": 27,
       "norm_label": "totitlecaseabbreviation()",
-      "community_name": "Reference Display Formatting",
+      "community_name": "Community 27",
       "id": "src_reference_format_totitlecaseabbreviation"
     },
     {
@@ -1425,7 +1425,7 @@
       "_origin": "ast",
       "community": 26,
       "norm_label": ".constructor()",
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "id": "src_scripture_list_renderer_scripturelistrenderer_constructor"
     },
     {
@@ -2327,7 +2327,7 @@
       "_origin": "ast",
       "community": 25,
       "norm_label": "copilot-instructions.md",
-      "community_name": "Copilot Project Instructions",
+      "community_name": "Community 25",
       "id": "github_copilot_instructions"
     },
     {
@@ -2338,7 +2338,7 @@
       "_origin": "ast",
       "community": 25,
       "norm_label": "copilot instructions",
-      "community_name": "Copilot Project Instructions",
+      "community_name": "Community 25",
       "id": "github_copilot_instructions_copilot_instructions"
     },
     {
@@ -2437,7 +2437,7 @@
       "_origin": "ast",
       "community": 24,
       "norm_label": "claude.md",
-      "community_name": "Claude Project Instructions",
+      "community_name": "Community 24",
       "id": "claude"
     },
     {
@@ -2448,7 +2448,7 @@
       "_origin": "ast",
       "community": 24,
       "norm_label": "claude code instructions",
-      "community_name": "Claude Project Instructions",
+      "community_name": "Community 24",
       "id": "claude_claude_code_instructions"
     },
     {
@@ -2459,7 +2459,7 @@
       "_origin": "ast",
       "community": 23,
       "norm_label": "contributing.md",
-      "community_name": "Contribution Workflow",
+      "community_name": "Community 23",
       "id": "contributing"
     },
     {
@@ -2470,7 +2470,7 @@
       "_origin": "ast",
       "community": 23,
       "norm_label": "contributing",
-      "community_name": "Contribution Workflow",
+      "community_name": "Community 23",
       "id": "contributing_contributing"
     },
     {
@@ -2481,7 +2481,7 @@
       "_origin": "ast",
       "community": 23,
       "norm_label": "development",
-      "community_name": "Contribution Workflow",
+      "community_name": "Community 23",
       "id": "contributing_development"
     },
     {
@@ -2492,7 +2492,7 @@
       "_origin": "ast",
       "community": 23,
       "norm_label": "reports and proposals",
-      "community_name": "Contribution Workflow",
+      "community_name": "Community 23",
       "id": "contributing_reports_and_proposals"
     },
     {
@@ -2503,7 +2503,7 @@
       "_origin": "ast",
       "community": 22,
       "norm_label": "sidebar-plan.md",
-      "community_name": "Sidebar Implementation Plan",
+      "community_name": "Community 22",
       "id": "sidebar_plan"
     },
     {
@@ -2514,7 +2514,7 @@
       "_origin": "ast",
       "community": 22,
       "norm_label": "scripture sidebar implementation plan",
-      "community_name": "Sidebar Implementation Plan",
+      "community_name": "Community 22",
       "id": "sidebar_plan_scripture_sidebar_implementation_plan"
     },
     {
@@ -2525,7 +2525,7 @@
       "_origin": "ast",
       "community": 22,
       "norm_label": "implementation checklist",
-      "community_name": "Sidebar Implementation Plan",
+      "community_name": "Community 22",
       "id": "sidebar_plan_implementation_checklist"
     },
     {
@@ -2536,7 +2536,7 @@
       "_origin": "ast",
       "community": 22,
       "norm_label": "decided behavior",
-      "community_name": "Sidebar Implementation Plan",
+      "community_name": "Community 22",
       "id": "sidebar_plan_decided_behavior"
     },
     {
@@ -2547,7 +2547,7 @@
       "_origin": "ast",
       "community": 22,
       "norm_label": "compatibility and verification",
-      "community_name": "Sidebar Implementation Plan",
+      "community_name": "Community 22",
       "id": "sidebar_plan_compatibility_and_verification"
     },
     {
@@ -2558,7 +2558,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "technical-debt.md",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt"
     },
     {
@@ -2569,7 +2569,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "technical debt",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt_technical_debt"
     },
     {
@@ -2580,7 +2580,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "upstream baseline",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt_upstream_baseline"
     },
     {
@@ -2591,7 +2591,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "deferred architecture",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt_deferred_architecture"
     },
     {
@@ -2602,7 +2602,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "compatibility-sensitive work",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt_compatibility_sensitive_work"
     },
     {
@@ -2613,7 +2613,7 @@
       "_origin": "ast",
       "community": 21,
       "norm_label": "css and release operations",
-      "community_name": "Technical Debt Planning",
+      "community_name": "Community 21",
       "id": "technical_debt_css_and_release_operations"
     },
     {
@@ -2627,7 +2627,7 @@
       "contributor": null,
       "community": 31,
       "norm_label": "src/scripture-list-renderer.ts",
-      "community_name": "Scripture List Rendering",
+      "community_name": "Community 31",
       "id": "agents_scripture_list_renderer_ts"
     },
     {
@@ -2641,7 +2641,7 @@
       "contributor": null,
       "community": 29,
       "norm_label": "src/reference-format.ts",
-      "community_name": "Reference Format Module",
+      "community_name": "Community 29",
       "id": "agents_reference_format_ts"
     },
     {
@@ -2669,7 +2669,7 @@
       "contributor": null,
       "community": 28,
       "norm_label": "src/bible-note-utils.ts",
-      "community_name": "Bible Note Utilities",
+      "community_name": "Community 28",
       "id": "agents_bible_note_utils_ts"
     },
     {
@@ -2683,7 +2683,7 @@
       "contributor": null,
       "community": 32,
       "norm_label": "src/settings-migrations.ts",
-      "community_name": "Settings Migrations",
+      "community_name": "Community 32",
       "id": "agents_settings_migrations_ts"
     },
     {
@@ -2697,7 +2697,7 @@
       "contributor": null,
       "community": 30,
       "norm_label": "src/scripture-list-parser.ts",
-      "community_name": "Scripture List Parsing",
+      "community_name": "Community 30",
       "id": "agents_scripture_list_parser_ts"
     },
     {
@@ -5358,7 +5358,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "community": 26,
-      "community_name": "Bible Data Validation",
+      "community_name": "Community 26",
       "norm_label": "bibledata",
       "id": "src_types_bibledata"
     },
