@@ -4,6 +4,7 @@ import { BibleDataLoader } from './bible-data-loader';
 import { createScriptureSidebarState, getScriptureSidebarNavigationTarget, parseScriptureSidebarState } from './scripture-sidebar-state';
 import { resolveScriptureReference } from './verse-lookup';
 import { ScriptureReferenceInputSuggest } from './scripture-reference-input-suggest';
+import { orderTranslations } from './translation-order';
 
 export const SCRIPTURE_SIDEBAR_VIEW_TYPE = 'scripture-sidebar';
 
@@ -125,9 +126,10 @@ export class ScriptureSidebarView extends ItemView {
 		this.disposeReferenceSuggest();
 		const version = ++this.renderVersion;
 		const settings = this.callbacks.getSettings();
-		const selectedTranslation = settings.translations.find(translation => translation.name === this.state.translation)
-			|| settings.translations.find(translation => translation.name === settings.sidebarDefaultTranslation)
-			|| settings.translations[0];
+		const translations = orderTranslations(settings.translations, settings.defaultTranslation);
+		const selectedTranslation = translations.find(translation => translation.name === this.state.translation)
+			|| translations.find(translation => translation.name === settings.sidebarDefaultTranslation)
+			|| translations[0];
 		this.state.translation = selectedTranslation?.name || '';
 
 		let bibleData: BibleData | null = null;
@@ -147,7 +149,7 @@ export class ScriptureSidebarView extends ItemView {
 		const previousNavigation = toolbar.createDiv({
 			cls: 'scripture-sidebar-navigation scripture-sidebar-navigation-previous',
 		});
-		const referenceInput = this.createReferenceInput(toolbar, settings.translations, selectedTranslation);
+		const referenceInput = this.createReferenceInput(toolbar, translations, selectedTranslation);
 		referenceInput.disabled = !selectedTranslation;
 		const nextNavigation = toolbar.createDiv({
 			cls: 'scripture-sidebar-navigation scripture-sidebar-navigation-next',

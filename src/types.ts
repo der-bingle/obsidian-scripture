@@ -154,7 +154,7 @@ export interface ScriptureAPI {
 
 	/**
 	 * Get all configured Bible translations
-	 * @returns Array of all configured translations
+	 * @returns Primary translation first, followed by all others alphabetically by short name
 	 */
 	getAvailableTranslations(): BibleTranslation[];
 

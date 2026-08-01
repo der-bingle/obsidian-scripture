@@ -17,6 +17,7 @@ import { getBibleNoteChapterReference } from './bible-note-utils';
 import { resolveScriptureLink } from './scripture-link';
 import { cloneScriptureSidebarState, createScriptureSidebarState, getSidebarDefaultTranslation } from './scripture-sidebar-state';
 import { SCRIPTURE_SIDEBAR_VIEW_TYPE, ScriptureSidebarView } from './scripture-sidebar-view';
+import { orderTranslations } from './translation-order';
 
 interface AppWithPlugins extends App {
 	plugins: {
@@ -880,7 +881,7 @@ export default class Scripture extends Plugin {
 		if (!this.settings || !this.settings.translations) {
 			return [];
 		}
-		return [...this.settings.translations]; // Return a copy to prevent external modification
+		return orderTranslations(this.settings.translations, this.settings.defaultTranslation);
 	}
 
 	/**

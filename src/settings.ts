@@ -3,6 +3,7 @@ import type { ScriptureSettings, BibleTranslation, ReferenceFormat, InsertScript
 import { BibleDataLoader } from './bible-data-loader';
 import { FileSuggest, FolderSuggest } from './file-suggest';
 import type Scripture from './main';
+import { orderTranslations } from './translation-order';
 
 export class ScriptureSettingTab extends PluginSettingTab {
 	private plugin: Scripture;
@@ -95,7 +96,8 @@ export class ScriptureSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		this.plugin.settings.translations.forEach((translation: BibleTranslation, index: number) => {
+		orderTranslations(this.plugin.settings.translations, this.plugin.settings.defaultTranslation).forEach((translation: BibleTranslation) => {
+			const index = this.plugin.settings.translations.indexOf(translation);
 			const setting = new Setting(container)
 				.setName(translation.fullName || translation.name)
 				.setDesc(translation.filePath);
@@ -168,7 +170,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				if (this.plugin.settings.translations.length === 0) {
 					dropdown.addOption('', 'No translations configured');
 				} else {
-					this.plugin.settings.translations.forEach(translation => {
+					orderTranslations(this.plugin.settings.translations, this.plugin.settings.defaultTranslation).forEach(translation => {
 						dropdown.addOption(translation.name, translation.fullName || translation.name);
 					});
 				}
@@ -192,7 +194,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				if (this.plugin.settings.translations.length === 0) {
 					dropdown.addOption('', 'No translations configured');
 				} else {
-					this.plugin.settings.translations.forEach((translation: BibleTranslation) => {
+					orderTranslations(this.plugin.settings.translations, this.plugin.settings.defaultTranslation).forEach((translation: BibleTranslation) => {
 						dropdown.addOption(translation.name, translation.fullName || translation.name);
 					});
 				}
@@ -202,6 +204,7 @@ export class ScriptureSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.defaultTranslation = value;
 						await this.plugin.saveSettings();
+						this.display();
 					});
 			});
 

@@ -1,6 +1,7 @@
 import { App, TFile, SuggestModal, Notice } from 'obsidian';
 import type { ScriptureSettings, BibleTranslation } from './types';
 import { getBibleNoteTranslation, getNoteEnabledTranslations, isBibleNoteFile, normalizeNotesDirectory } from './bible-note-utils';
+import { orderTranslations } from './translation-order';
 
 interface TranslationOption {
 	translation: BibleTranslation;
@@ -71,7 +72,7 @@ export class BibleChapterNavigator {
 	private getAvailableTranslations(currentFile: TFile): TranslationOption[] {
 		const currentTranslation = this.getCurrentTranslation(currentFile);
 
-		return getNoteEnabledTranslations(this.settings)
+		return orderTranslations(getNoteEnabledTranslations(this.settings), this.settings.defaultTranslation)
 			.map(translation => ({
 				translation,
 				isCurrent: currentTranslation?.name === translation.name

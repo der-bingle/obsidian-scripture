@@ -2,6 +2,7 @@ import { App, Modal, Notice, ButtonComponent, Setting, ToggleComponent, setIcon 
 import type { BibleVerse, OnSubmitCallback, BibleTranslation, ReferenceFormat, InsertScriptureFormat } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 import { parseAndLookupReference as resolveReferenceToVerses } from './verse-lookup';
+import { orderTranslations } from './translation-order';
 
 export class ScriptureModal extends Modal {
 	private translations: BibleTranslation[];
@@ -25,7 +26,7 @@ export class ScriptureModal extends Modal {
 	// showVerseNumbersToggle determines whether to show the toggle in the UI
 	constructor(app: App, translations: BibleTranslation[], defaultTranslation: string, dataLoader: BibleDataLoader, initialReference: string, onSubmit: OnSubmitCallback, defaultIncludeVerseNumbers: boolean, defaultInsertScriptureFormat: InsertScriptureFormat, defaultReferenceFormat: ReferenceFormat, showOutputFormatSelector = true, showVerseNumbersToggle = true, initialCursorPosition: 'start' | 'end' = 'end', title = 'Insert scripture') {
 		super(app);
-		this.translations = translations;
+		this.translations = orderTranslations(translations, defaultTranslation);
 		this.selectedTranslation = defaultTranslation || translations[0]?.name || '';
 		this.dataLoader = dataLoader;
 		this.initialReference = initialReference || '';
