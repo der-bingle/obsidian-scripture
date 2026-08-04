@@ -380,6 +380,18 @@ export class ScriptureSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
+			.setName('Reference click action')
+			.setDesc('Choose whether Scripture list references open a chapter note or navigate the Scripture sidebar')
+			.addDropdown(dropdown => dropdown
+				.addOption('note', 'Open Scripture note')
+				.addOption('sidebar', 'Open in Scripture sidebar')
+				.setValue(this.plugin.settings.scriptureListReferenceAction)
+				.onChange(async value => {
+					this.plugin.settings.scriptureListReferenceAction = value as ScriptureSettings['scriptureListReferenceAction'];
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName('Reformat Scripture list source')
 			.setDesc('Automatically normalize references inside Scripture list source')
 			.addToggle(toggle => toggle

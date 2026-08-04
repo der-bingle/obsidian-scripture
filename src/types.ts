@@ -56,6 +56,7 @@ export interface BibleTranslation {
 export type ReferenceFormat = 'full-name' | 'standard-abbrev' | 'english-abbrev' | 'chapter-verse';
 export type InsertScriptureFormat = 'scripture-callout' | 'plain-text';
 export type LinkPathFormat = 'configured-path' | 'basename';
+export type ScriptureListReferenceAction = 'note' | 'sidebar';
 export type ScriptureSidebarSide = 'left' | 'right';
 
 export interface ScriptureSidebarState {
@@ -79,6 +80,7 @@ export interface ScriptureSettings {
 	calloutReferenceFormat: ReferenceFormat;
 	linkReferenceFormat: ReferenceFormat;
 	scriptureListReferenceFormat: ReferenceFormat;
+	scriptureListReferenceAction: ScriptureListReferenceAction;
 	scriptureListReformatSource: boolean;
 	scriptureListSourceReferenceFormat: ReferenceFormat;
 	scriptureListReorderSourceByBook: boolean;
@@ -105,6 +107,7 @@ export const DEFAULT_SETTINGS: ScriptureSettings = {
 	calloutReferenceFormat: 'full-name',
 	linkReferenceFormat: 'standard-abbrev',
 	scriptureListReferenceFormat: 'full-name',
+	scriptureListReferenceAction: 'note',
 	scriptureListReformatSource: false,
 	scriptureListSourceReferenceFormat: 'standard-abbrev',
 	scriptureListReorderSourceByBook: false,
@@ -140,6 +143,7 @@ export interface ProcessedReference {
 	verses?: BibleVerse[];
 	testament?: 'OLD' | 'NEW';
 	bookNumber?: number;
+	bookId?: string;
 	isChapterReference?: boolean;
 	error?: string;
 }

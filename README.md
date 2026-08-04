@@ -148,6 +148,8 @@ John 3:16
 
 Prefixing a line with `- ` or `* ` highlights that row. The rendered list can edit its source, append a blank entry, paste references from the clipboard, and copy a passage as a callout. Optional settings can normalize and reorder the source.
 
+Under **Scripture lists**, **Reference click action** chooses whether reference-column links open their configured chapter notes or navigate the most recently used Scripture sidebar. Sidebar navigation preserves the sidebar's current translation and opens the first verse in the list reference. If no sidebar is open, the plugin creates one with the configured sidebar default. When sidebar navigation is selected, `Cmd`-click on macOS or `Ctrl`-click on Windows and Linux still opens the chapter note in a new tab.
+
 ## Public API
 
 The compatibility alias remains available to other plugins:
@@ -169,16 +171,31 @@ The canonical plugin instance is registered under `obsidian-scripture`; the shor
 
 ### Obsidian URI
 
-Open a scripture note through:
+Open a Scripture note through:
 
 ```text
 obsidian://scripture/open-scripture-note?reference=John%203%3A16%20NLT
 ```
 
-Accepted parameters:
+Open the same reference in the Scripture sidebar through:
+
+```text
+obsidian://scripture/open-scripture-sidebar?reference=John%203%3A16
+```
+
+The sidebar URI navigates the most recently used sidebar and preserves its current translation. If no sidebar is open, it creates one with the configured sidebar default. Add `translation=NLT` to select a translation explicitly or `newSidebar=true` to open the reference in a new Scripture sidebar. `newLeaf=true` is also accepted as an alias for `newSidebar=true`.
+
+Both actions accept these reference parameters:
 
 - `reference`, `ref`, or `q`: scripture input.
-- `newLeaf=true` or `newLeaf=1`: open in a new leaf.
+
+The note action additionally accepts `newLeaf=true` or `newLeaf=1` to open in a new leaf.
+
+The sidebar URI can also be used as a Markdown action link:
+
+```markdown
+[John 3:16](obsidian://scripture/open-scripture-sidebar?reference=John%203%3A16)
+```
 
 ## Privacy and permissions
 

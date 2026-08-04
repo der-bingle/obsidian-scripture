@@ -9,6 +9,7 @@ import { formatReferenceDisplay } from './reference-format';
 import { resolveExistingScriptureTarget, resolveScriptureLink } from './scripture-link';
 import { parseScriptureListInput } from './scripture-list-parser';
 import type { ParsedScriptureListEntry } from './scripture-list-parser';
+import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add' | 'paste';
@@ -16,6 +17,10 @@ export interface ScriptureListRenderContext {
 	sourcePath: string;
 	containerEl: HTMLElement;
 	getSectionInfo: () => MarkdownSectionInformation | null;
+}
+
+export interface ScriptureListRendererCallbacks {
+	onOpenInSidebar?: (target: ScriptureSidebarNavigationTarget) => Promise<void>;
 }
 
 export const createScriptureListRenderContext = (
@@ -93,6 +98,7 @@ export class ScriptureListRenderer {
 	private translations: BibleTranslation[];
 	private defaultTranslation: string;
 	private settings: ScriptureSettings;
+	private callbacks: ScriptureListRendererCallbacks;
 
 	constructor(
 		app: App,
@@ -100,7 +106,8 @@ export class ScriptureListRenderer {
 		calloutFormatter: CalloutFormatter,
 		translations: BibleTranslation[],
 		defaultTranslation: string,
-		settings: ScriptureSettings
+		settings: ScriptureSettings,
+		callbacks: ScriptureListRendererCallbacks = {},
 	) {
 		this.app = app;
 		this.dataLoader = dataLoader;
@@ -108,6 +115,7 @@ export class ScriptureListRenderer {
 		this.translations = translations;
 		this.defaultTranslation = defaultTranslation;
 		this.settings = settings;
+		this.callbacks = callbacks;
 	}
 
 	/**
@@ -193,6 +201,7 @@ export class ScriptureListRenderer {
 					verses,
 					testament,
 					bookNumber,
+					bookId: passageRef.book.toUpperCase(),
 					isChapterReference: passageRef.type === 'chapter'
 				});
 
@@ -660,26 +669,66 @@ export class ScriptureListRenderer {
 			chapter,
 			ref.isChapterReference ? undefined : verse,
 		);
-		if (!resolution.target) {
+		const sidebarTarget = ref.bookId ? {
+			bookId: ref.bookId,
+			chapter,
+			anchorVerse: verse,
+		} : null;
+		const openInSidebar = this.callbacks.onOpenInSidebar;
+		const canOpenInSidebar = this.settings.scriptureListReferenceAction === 'sidebar'
+			&& !!openInSidebar
+			&& !!sidebarTarget;
+		if (!resolution.target && !canOpenInSidebar) {
 			cell.textContent = ref.parsedReference;
 			return;
 		}
 		const linkTarget = resolution.target;
+		// Sidebar links must not look like Obsidian internal links: its delegated
+		// handler can open the chapter note before this link's click handler runs.
+		const attributes: Record<string, string> = {
+			href: canOpenInSidebar ? '#' : linkTarget || '#',
+			title: canOpenInSidebar ? 'Open in Scripture sidebar' : 'Open Scripture note',
+		};
+		if (linkTarget && !canOpenInSidebar) {
+			attributes['data-href'] = linkTarget;
+			attributes.target = '_blank';
+			attributes.rel = 'noopener';
+		}
 
 		// Create clickable link
 		const link = cell.createEl('a', {
-			cls: 'internal-link',
-			attr: {
-				'data-href': linkTarget,
-				href: linkTarget,
-				target: '_blank',
-				rel: 'noopener'
-			}
+			cls: canOpenInSidebar ? 'scripture-list-sidebar-link' : 'internal-link',
+			attr: attributes,
 		});
 		link.textContent = ref.parsedReference;
+		if (canOpenInSidebar) {
+			const consumeSidebarPointerEvent = (event: MouseEvent | PointerEvent) => {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+			};
+			link.addEventListener('pointerdown', consumeSidebarPointerEvent);
+			link.addEventListener('mousedown', consumeSidebarPointerEvent);
+		}
 
 		// Handle click to navigate within Obsidian
 		link.addEventListener('click', (e) => {
+			const openInNewLeaf = e.metaKey || e.ctrlKey;
+			if (canOpenInSidebar) {
+				e.preventDefault();
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				if (!openInNewLeaf || !linkTarget) {
+					if (openInSidebar && sidebarTarget) {
+						void openInSidebar(sidebarTarget).catch(error => {
+							console.error('Failed to open Scripture list reference in sidebar:', error);
+							new Notice('Unable to open this reference in the Scripture sidebar');
+						});
+					}
+					return;
+				}
+			}
+			if (!linkTarget) return;
 			e.preventDefault();
 			const existingTarget = resolveExistingScriptureTarget(
 				linkTarget,
@@ -690,7 +739,7 @@ export class ScriptureListRenderer {
 				new Notice(`Scripture note not found: ${linkTarget}`);
 				return;
 			}
-			void this.app.workspace.openLinkText(existingTarget, sourcePath, false, { active: true });
+			void this.app.workspace.openLinkText(existingTarget, sourcePath, openInNewLeaf, { active: true });
 		});
 	}
 

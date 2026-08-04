@@ -1,4 +1,5 @@
 import { App, Editor, MarkdownView, Plugin, Notice, TFile, WorkspaceLeaf, normalizePath } from 'obsidian';
+import type { ObsidianProtocolData } from 'obsidian';
 import { detectReferences } from 'scripture-references';
 import { ScriptureModal } from './modal';
 import { ScriptureSettingTab } from './settings';
@@ -10,13 +11,15 @@ import { BibleNoteTitleManager } from './bible-note-title-manager';
 import { createScriptureListRenderContext, ScriptureListRenderer } from './scripture-list-renderer';
 import { ScriptureNoteSwitcherModal } from './scripture-note-switcher';
 import type { ScriptureSettings, BibleVerse, ScriptureAPI, ScriptureCalloutOptions, ScriptureCalloutResult, BibleTranslation, ReferenceFormat, ScriptureSidebarSide, ScriptureSidebarState } from './types';
-import { parseAndLookupReference } from './verse-lookup';
+import { parseAndLookupReference, resolveScriptureReference } from './verse-lookup';
 import type { InsertionTarget } from './callout-formatter';
 import { migrateStoredSettings } from './settings-migrations';
 import { getBibleNoteChapterReference } from './bible-note-utils';
 import { resolveScriptureLink } from './scripture-link';
-import { cloneScriptureSidebarState, createScriptureSidebarState, getSidebarDefaultTranslation } from './scripture-sidebar-state';
+import { cloneScriptureSidebarState, createScriptureSidebarState, getScriptureSidebarNavigationTarget, getSidebarDefaultTranslation, parseScriptureSidebarState } from './scripture-sidebar-state';
+import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state';
 import { SCRIPTURE_SIDEBAR_VIEW_TYPE, ScriptureSidebarView } from './scripture-sidebar-view';
+import { parseScriptureSidebarUriRequest } from './scripture-sidebar-uri';
 import { orderTranslations } from './translation-order';
 
 interface AppWithPlugins extends App {
@@ -96,7 +99,12 @@ export default class Scripture extends Plugin {
 				this.calloutFormatter,
 				this.settings.translations,
 				this.settings.defaultTranslation,
-				this.settings
+				this.settings,
+				{
+					onOpenInSidebar: async target => {
+						await this.openSidebarNavigationTarget(target);
+					},
+				},
 			);
 
 			// Parse input
@@ -464,13 +472,35 @@ export default class Scripture extends Plugin {
 		this.getSidebarViews().forEach(({ view }) => view.updateVerseDisplay());
 	}
 
-	private getMostRecentSidebar(): { leaf: WorkspaceLeaf; view: ScriptureSidebarView } | null {
-		if (this.lastUsedSidebarLeaf?.view instanceof ScriptureSidebarView) {
-			return { leaf: this.lastUsedSidebarLeaf, view: this.lastUsedSidebarLeaf.view };
+	private getSidebarLeafState(leaf: WorkspaceLeaf): ScriptureSidebarState | null {
+		if (leaf.view instanceof ScriptureSidebarView) return leaf.view.getSidebarState();
+		const state = leaf.getViewState().state;
+		if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
+		if (typeof state.lastUsedAt !== 'number') return null;
+		return parseScriptureSidebarState(state, this.settings);
+	}
+
+	private getMostRecentSidebarLeaf(): WorkspaceLeaf | null {
+		const leaves = this.app.workspace.getLeavesOfType(SCRIPTURE_SIDEBAR_VIEW_TYPE);
+		if (this.lastUsedSidebarLeaf && leaves.includes(this.lastUsedSidebarLeaf)) {
+			return this.lastUsedSidebarLeaf;
 		}
-		const mostRecent = this.getSidebarViews().sort((left, right) => right.view.getLastUsedAt() - left.view.getLastUsedAt())[0] || null;
-		this.lastUsedSidebarLeaf = mostRecent?.leaf || null;
+
+		const mostRecent = leaves.sort((left, right) =>
+			(this.getSidebarLeafState(right)?.lastUsedAt || 0) - (this.getSidebarLeafState(left)?.lastUsedAt || 0)
+		)[0] || null;
+		this.lastUsedSidebarLeaf = mostRecent;
 		return mostRecent;
+	}
+
+	private async getMostRecentSidebar(): Promise<{ leaf: WorkspaceLeaf; view: ScriptureSidebarView } | null> {
+		const leaf = this.getMostRecentSidebarLeaf();
+		if (!leaf) return null;
+		await this.app.workspace.revealLeaf(leaf);
+		await leaf.loadIfDeferred();
+		if (!(leaf.view instanceof ScriptureSidebarView)) return null;
+		this.lastUsedSidebarLeaf = leaf;
+		return { leaf, view: leaf.view };
 	}
 
 	private markSidebarUsed(leaf: WorkspaceLeaf): void {
@@ -486,10 +516,9 @@ export default class Scripture extends Plugin {
 	}
 
 	private async openScriptureSidebar(): Promise<void> {
-		const existing = this.getMostRecentSidebar();
+		const existing = await this.getMostRecentSidebar();
 		if (existing) {
 			existing.view.activate();
-			await this.app.workspace.revealLeaf(existing.leaf);
 			return;
 		}
 		const state = this.settings.lastSidebarState
@@ -499,7 +528,7 @@ export default class Scripture extends Plugin {
 	}
 
 	private async openNewScriptureSidebar(): Promise<void> {
-		const existing = this.getMostRecentSidebar();
+		const existing = await this.getMostRecentSidebar();
 		const source = existing?.view.getSidebarState() || this.settings.lastSidebarState;
 		const state = source
 			? cloneScriptureSidebarState(this.settings, source)
@@ -508,38 +537,102 @@ export default class Scripture extends Plugin {
 	}
 
 	private async openCurrentChapterInSidebar(bookId: string, chapter: number): Promise<void> {
-		const existing = this.getMostRecentSidebar();
-		if (existing) {
-			await existing.view.navigateToChapter(bookId, chapter);
-			await this.app.workspace.revealLeaf(existing.leaf);
-			return;
-		}
-
-		const state = createScriptureSidebarState(this.settings, {
-			translation: getSidebarDefaultTranslation(this.settings),
-			bookId,
-			chapter,
-			anchorVerse: 1,
-			anchorOffset: 0,
-			side: this.settings.lastSidebarState?.side || 'right',
-		});
-		await this.createSidebar(state, false);
+		await this.openSidebarNavigationTarget({ bookId, chapter, anchorVerse: 1 });
 	}
 
-	private async createSidebar(state: ScriptureSidebarState, split: boolean): Promise<void> {
+	private async openSidebarNavigationTarget(
+		target: ScriptureSidebarNavigationTarget,
+		options: { newSidebar?: boolean; translation?: string } = {},
+	): Promise<boolean> {
+		const existing = await this.getMostRecentSidebar();
+		if (existing && !options.newSidebar) {
+			await existing.view.navigateToReference(target, options.translation);
+			return true;
+		}
+
+		const state = existing && options.newSidebar
+			? cloneScriptureSidebarState(this.settings, existing.view.getSidebarState())
+			: createScriptureSidebarState(this.settings, {
+				translation: getSidebarDefaultTranslation(this.settings),
+				side: this.settings.lastSidebarState?.side || 'right',
+			});
+		state.translation = options.translation || state.translation;
+		state.bookId = target.bookId;
+		state.chapter = target.chapter;
+		state.anchorVerse = target.anchorVerse;
+		state.anchorOffset = 0;
+		return this.createSidebar(state, !!options.newSidebar);
+	}
+
+	private getSidebarTranslation(requestedTranslation?: string): BibleTranslation | null {
+		if (requestedTranslation) {
+			return this.settings.translations.find(translation =>
+				translation.name.toUpperCase() === requestedTranslation.toUpperCase()
+			) || null;
+		}
+
+		const recentLeaf = this.getMostRecentSidebarLeaf();
+		const recentTranslation = recentLeaf ? this.getSidebarLeafState(recentLeaf)?.translation : undefined;
+		const preferredName = recentTranslation || getSidebarDefaultTranslation(this.settings);
+		return this.settings.translations.find(translation => translation.name === preferredName)
+			|| this.settings.translations[0]
+			|| null;
+	}
+
+	private async openScriptureReferenceInSidebar(
+		input: string,
+		options: { newSidebar?: boolean; translation?: string } = {},
+	): Promise<boolean> {
+		const parsed = this.parseReferenceAndTranslation(input);
+		const requestedTranslation = options.translation || parsed.translation || undefined;
+		const translation = this.getSidebarTranslation(requestedTranslation);
+		if (!translation) {
+			new Notice(requestedTranslation
+				? `Translation not configured: ${requestedTranslation}`
+				: 'No Scripture translations are configured');
+			return false;
+		}
+
+		try {
+			const resolved = await resolveScriptureReference(this.dataLoader, translation, parsed.reference);
+			const target = getScriptureSidebarNavigationTarget(resolved);
+			if (!target) {
+				new Notice('Reference not found or invalid format');
+				return false;
+			}
+
+			return this.openSidebarNavigationTarget(target, {
+				newSidebar: options.newSidebar,
+				translation: requestedTranslation ? translation.name : undefined,
+			});
+		} catch (error) {
+			console.error('Failed to open Scripture reference in sidebar:', error);
+			new Notice('Unable to load this Scripture reference');
+			return false;
+		}
+	}
+
+	private waitForLayoutReady(): Promise<void> {
+		if (this.app.workspace.layoutReady) return Promise.resolve();
+		return new Promise(resolve => this.app.workspace.onLayoutReady(resolve));
+	}
+
+	private async createSidebar(state: ScriptureSidebarState, split: boolean): Promise<boolean> {
 		const leaf = state.side === 'left'
 			? this.app.workspace.getLeftLeaf(split)
 			: this.app.workspace.getRightLeaf(split);
 		if (!leaf) {
 			new Notice('Unable to create Scripture sidebar');
-			return;
+			return false;
 		}
 		await leaf.setViewState({ type: SCRIPTURE_SIDEBAR_VIEW_TYPE, active: true, state: { ...state } });
+		await this.app.workspace.revealLeaf(leaf);
+		await leaf.loadIfDeferred();
 		if (leaf.view instanceof ScriptureSidebarView) {
 			this.lastUsedSidebarLeaf = leaf;
 			leaf.view.activate();
 		}
-		await this.app.workspace.revealLeaf(leaf);
+		return true;
 	}
 
 	private getActiveBibleNoteReference(): { bookId: string; chapter: number } | null {
@@ -796,16 +889,35 @@ export default class Scripture extends Plugin {
 		pluginRegistry.scripture ??= this;
 		pluginRegistry.scripture.api = this.api;
 
-		this.registerObsidianProtocolHandler('open-scripture-note', async (params: Record<string, string>) => {
+		const openScriptureNoteHandler = async (params: ObsidianProtocolData): Promise<void> => {
 			const input = params.reference || params.ref || params.q || '';
 			if (!input) {
 				new Notice('Missing reference parameter');
 				return;
 			}
 
+			await this.waitForLayoutReady();
 			const openInNewLeaf = params.newLeaf === '1' || params.newLeaf === 'true';
 			await this.openScriptureNote(input, { openInNewLeaf });
-		});
+		};
+		this.registerObsidianProtocolHandler('open-scripture-note', openScriptureNoteHandler);
+		this.registerObsidianProtocolHandler('scripture/open-scripture-note', openScriptureNoteHandler);
+
+		const openScriptureSidebarHandler = async (params: ObsidianProtocolData): Promise<void> => {
+			const request = parseScriptureSidebarUriRequest(params);
+			if (!request.reference) {
+				new Notice('Missing reference parameter');
+				return;
+			}
+
+			await this.waitForLayoutReady();
+			await this.openScriptureReferenceInSidebar(request.reference, {
+				newSidebar: request.newSidebar,
+				translation: request.translation,
+			});
+		};
+		this.registerObsidianProtocolHandler('open-scripture-sidebar', openScriptureSidebarHandler);
+		this.registerObsidianProtocolHandler('scripture/open-scripture-sidebar', openScriptureSidebarHandler);
 	}
 
 	/**

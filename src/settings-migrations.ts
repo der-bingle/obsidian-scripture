@@ -52,6 +52,12 @@ export const migrateStoredSettings = (
 		didMigrate = true;
 	}
 
+	if (hasStoredData && loaded.scriptureListReferenceAction !== undefined
+		&& loaded.scriptureListReferenceAction !== 'note' && loaded.scriptureListReferenceAction !== 'sidebar') {
+		settings.scriptureListReferenceAction = 'note';
+		didMigrate = true;
+	}
+
 	if (hasStoredData && (typeof loaded.sidebarDefaultTranslation !== 'string'
 		|| !settings.translations.some(translation => translation.name === loaded.sidebarDefaultTranslation))) {
 		settings.sidebarDefaultTranslation = settings.defaultTranslation;

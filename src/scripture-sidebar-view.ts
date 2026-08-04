@@ -2,6 +2,7 @@ import { ItemView, Menu, Notice, Platform, WorkspaceLeaf, setIcon } from 'obsidi
 import type { BibleBook, BibleChapter, BibleData, BibleTranslation, BibleVerseData, ScriptureSettings, ScriptureSidebarSide, ScriptureSidebarState } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 import { createScriptureSidebarState, getScriptureSidebarNavigationTarget, parseScriptureSidebarState } from './scripture-sidebar-state';
+import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state';
 import { resolveScriptureReference } from './verse-lookup';
 import { ScriptureReferenceInputSuggest } from './scripture-reference-input-suggest';
 import { orderTranslations } from './translation-order';
@@ -96,9 +97,16 @@ export class ScriptureSidebarView extends ItemView {
 	}
 
 	async navigateToChapter(bookId: string, chapter: number): Promise<void> {
-		this.state.bookId = bookId;
-		this.state.chapter = chapter;
-		this.state.anchorVerse = 1;
+		await this.navigateToReference({ bookId, chapter, anchorVerse: 1 });
+	}
+
+	async navigateToReference(target: ScriptureSidebarNavigationTarget, translation?: string): Promise<void> {
+		if (translation && this.callbacks.getSettings().translations.some(candidate => candidate.name === translation)) {
+			this.state.translation = translation;
+		}
+		this.state.bookId = target.bookId;
+		this.state.chapter = target.chapter;
+		this.state.anchorVerse = target.anchorVerse;
 		this.state.anchorOffset = 0;
 		this.markUsed();
 		await this.render(false);
