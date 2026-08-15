@@ -1033,7 +1033,7 @@ body:not(.bible-text-justify) .bible .cm-line {
     white-space: nowrap;
 }
 
-.scripture-list-text-cell {
+.scripture-list-wrapper .scripture-list-table .scripture-list-text-cell {
     white-space: pre-wrap;
 }
 
