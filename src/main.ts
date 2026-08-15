@@ -397,9 +397,10 @@ export default class Scripture extends Plugin {
 		this.lastUsedSidebarLeaf = null;
 
 		// Clean up API reference
-		const legacyAlias = (this.app as AppWithPlugins).plugins.plugins.scripture;
-		if (legacyAlias?.api === this.api) {
-			delete (legacyAlias as Partial<Scripture>).api;
+		const pluginRegistry = (this.app as AppWithPlugins).plugins.plugins;
+		const legacyAlias = pluginRegistry.scripture;
+		if (legacyAlias === this) {
+			delete pluginRegistry.scripture;
 		}
 	}
 
@@ -886,8 +887,16 @@ export default class Scripture extends Plugin {
 		};
 
 		const pluginRegistry = (this.app as AppWithPlugins).plugins.plugins;
-		pluginRegistry.scripture ??= this;
-		pluginRegistry.scripture.api = this.api;
+		const legacyAlias = pluginRegistry.scripture;
+		if (!legacyAlias || legacyAlias.manifest.id === this.manifest.id) {
+			// Keep the legacy API path without making Settings render a second plugin row.
+			Object.defineProperty(pluginRegistry, 'scripture', {
+				value: this,
+				writable: true,
+				configurable: true,
+				enumerable: false,
+			});
+		}
 
 		const openScriptureNoteHandler = async (params: ObsidianProtocolData): Promise<void> => {
 			const input = params.reference || params.ref || params.q || '';
