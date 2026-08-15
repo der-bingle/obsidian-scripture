@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-scripture",
 	"name": "Scripture",
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"minAppVersion": "1.9.0",
 	"description": "Insert and read Bible passages from local translations, navigate chapter notes and sidebars, and render interactive Scripture lists.",
 	"author": "Luke Wilson",
