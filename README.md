@@ -126,6 +126,7 @@ Command IDs remain stable for hotkeys and integrations.
 | Insert link | `insert-scripture-link` |
 | Open note | `open-scripture-note` |
 | Open from clipboard | `open-scripture-from-clipboard` |
+| Open sidebar from clipboard | `open-scripture-sidebar-from-clipboard` |
 | Open chapter in other translation | `open-chapter-in-translation` |
 | Open sidebar | `open-scripture-sidebar` |
 | Open new sidebar | `open-new-scripture-sidebar` |

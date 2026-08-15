@@ -653,15 +653,6 @@ body:not(.bible-text-justify) .bible .cm-line {
 	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
-.scripture-sidebar-paste {
-	display: none;
-	flex: 0 0 auto;
-}
-
-.scripture-sidebar-toolbar-mobile .scripture-sidebar-paste.is-visible {
-	display: inline-flex;
-}
-
 .scripture-sidebar-navigation {
 	display: flex;
 	flex: 0 0 auto;

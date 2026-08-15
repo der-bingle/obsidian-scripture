@@ -57,6 +57,7 @@ export default class Scripture extends Plugin {
 				getSettings: () => this.settings,
 				onStateChange: state => this.persistSidebarState(state),
 				onUsed: usedLeaf => this.markSidebarUsed(usedLeaf),
+				onOpenFromClipboard: () => this.openScriptureSidebarFromClipboard(),
 			},
 		));
 
@@ -288,6 +289,13 @@ export default class Scripture extends Plugin {
 					new Notice('No valid Scripture reference found in clipboard');
 				}
 			}
+		});
+
+		this.addCommand({
+			id: 'open-scripture-sidebar-from-clipboard',
+			name: 'Open sidebar from clipboard',
+			icon: 'clipboard-paste',
+			callback: () => void this.openScriptureSidebarFromClipboard(),
 		});
 
 		// Add command to toggle verse number visibility
@@ -611,6 +619,23 @@ export default class Scripture extends Plugin {
 			new Notice('Unable to load this Scripture reference');
 			return false;
 		}
+	}
+
+	private async openScriptureSidebarFromClipboard(): Promise<void> {
+		let clipboardText: string;
+		try {
+			clipboardText = await navigator.clipboard.readText();
+		} catch {
+			new Notice('Unable to read clipboard');
+			return;
+		}
+
+		if (!clipboardText.trim()) {
+			new Notice('Clipboard is empty');
+			return;
+		}
+
+		await this.openScriptureReferenceInSidebar(clipboardText.trim());
 	}
 
 	private waitForLayoutReady(): Promise<void> {

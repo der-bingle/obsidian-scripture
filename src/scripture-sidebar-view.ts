@@ -1,4 +1,4 @@
-import { ItemView, Menu, Notice, Platform, WorkspaceLeaf, setIcon } from 'obsidian';
+import { ItemView, Menu, Notice, WorkspaceLeaf, setIcon } from 'obsidian';
 import type { BibleBook, BibleChapter, BibleData, BibleTranslation, BibleVerseData, ScriptureSettings, ScriptureSidebarSide, ScriptureSidebarState } from './types';
 import { BibleDataLoader } from './bible-data-loader';
 import { createScriptureSidebarState, getScriptureSidebarNavigationTarget, parseScriptureSidebarState } from './scripture-sidebar-state';
@@ -13,6 +13,7 @@ interface ScriptureSidebarCallbacks {
 	getSettings: () => ScriptureSettings;
 	onStateChange: (state: ScriptureSidebarState) => void;
 	onUsed: (leaf: WorkspaceLeaf) => void;
+	onOpenFromClipboard: () => Promise<void>;
 }
 
 export class ScriptureSidebarView extends ItemView {
@@ -151,9 +152,7 @@ export class ScriptureSidebarView extends ItemView {
 		this.contentEl.empty();
 		this.readingEl = null;
 		this.referenceInputEl = null;
-		const toolbarClasses = ['scripture-sidebar-toolbar'];
-		if (Platform.isMobile) toolbarClasses.push('scripture-sidebar-toolbar-mobile');
-		const toolbar = this.contentEl.createDiv({ cls: toolbarClasses });
+		const toolbar = this.contentEl.createDiv({ cls: 'scripture-sidebar-toolbar' });
 		const previousNavigation = toolbar.createDiv({
 			cls: 'scripture-sidebar-navigation scripture-sidebar-navigation-previous',
 		});
@@ -276,25 +275,23 @@ export class ScriptureSidebarView extends ItemView {
 			},
 		});
 		translationButton.disabled = translations.length === 0;
-		const pasteButton = form.createEl('button', {
-			cls: 'clickable-icon scripture-sidebar-paste',
+		const openFromClipboardButton = form.createEl('button', {
+			cls: 'clickable-icon',
 			attr: {
 				type: 'button',
-				'aria-label': 'Paste reference from clipboard',
-				title: 'Paste reference from clipboard',
+				'aria-label': 'Open sidebar from clipboard',
+				title: 'Open sidebar from clipboard',
 			},
 		});
-		setIcon(pasteButton, 'clipboard-paste');
-		pasteButton.disabled = !selectedTranslation;
+		setIcon(openFromClipboardButton, 'clipboard-paste');
 		this.referenceInputEl = input;
 		translationButton.addEventListener('click', () => {
 			this.referenceSuggest?.close();
 			this.openTranslationMenu(translationButton, translations);
 		});
-		pasteButton.addEventListener('click', () => {
-			void this.pasteReferenceFromClipboard(input);
+		openFromClipboardButton.addEventListener('click', () => {
+			void this.callbacks.onOpenFromClipboard();
 		});
-		this.bindPasteVisibility(input, pasteButton);
 
 		form.addEventListener('submit', event => {
 			event.preventDefault();
@@ -362,20 +359,6 @@ export class ScriptureSidebarView extends ItemView {
 		this.referenceSuggest = null;
 	}
 
-	private bindPasteVisibility(input: HTMLInputElement, button: HTMLButtonElement): void {
-		if (!Platform.isMobile) return;
-		const show = (): void => button.addClass('is-visible');
-		const hideAfterInteraction = (): void => {
-			window.setTimeout(() => {
-				if (input.ownerDocument.activeElement !== input) button.removeClass('is-visible');
-			});
-		};
-		input.addEventListener('focus', show);
-		input.addEventListener('blur', hideAfterInteraction);
-		button.addEventListener('click', hideAfterInteraction);
-		if (input.ownerDocument.activeElement === input) show();
-	}
-
 	private restoreCanonicalReference(input: HTMLInputElement): void {
 		const canonicalReference = input.dataset.canonicalReference;
 		if (canonicalReference) input.value = canonicalReference;
@@ -434,23 +417,6 @@ export class ScriptureSidebarView extends ItemView {
 			this.referenceInputEl.focus();
 			this.referenceInputEl.select();
 		});
-	}
-
-	private async pasteReferenceFromClipboard(input: HTMLInputElement): Promise<void> {
-		try {
-			const clipboardText = await navigator.clipboard.readText();
-			if (!clipboardText.trim()) {
-				new Notice('Clipboard is empty');
-				return;
-			}
-
-			input.value = clipboardText.trim();
-			this.syncReferenceInputSize(input);
-			await this.navigateFromReference(input.value);
-		} catch (error) {
-			console.error('Clipboard read failed:', error);
-			new Notice('Unable to read clipboard in this environment');
-		}
 	}
 
 	private createNavigationButton(
