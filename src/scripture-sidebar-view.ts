@@ -6,6 +6,7 @@ import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state
 import { resolveScriptureReference } from './verse-lookup';
 import { ScriptureReferenceInputSuggest } from './scripture-reference-input-suggest';
 import { orderTranslations } from './translation-order';
+import { calculateScrollPastEndSpacerHeight } from './sidebar-scroll-past-end';
 
 export const SCRIPTURE_SIDEBAR_VIEW_TYPE = 'scripture-sidebar';
 
@@ -21,6 +22,8 @@ export class ScriptureSidebarView extends ItemView {
 	private readonly callbacks: ScriptureSidebarCallbacks;
 	private state: ScriptureSidebarState;
 	private readingEl: HTMLElement | null = null;
+	private scrollPastEndEl: HTMLElement | null = null;
+	private scrollPastEndObserver: ResizeObserver | null = null;
 	private referenceInputEl: HTMLInputElement | null = null;
 	private referenceSuggest: ScriptureReferenceInputSuggest | null = null;
 	private translationMenu: Menu | null = null;
@@ -66,11 +69,17 @@ export class ScriptureSidebarView extends ItemView {
 		this.opened = true;
 		this.contentEl.addClass('scripture-sidebar-view');
 		this.registerDomEvent(this.contentEl, 'pointerdown', () => this.markUsed());
+		const ViewResizeObserver = this.contentEl.ownerDocument.defaultView?.ResizeObserver;
+		if (ViewResizeObserver) {
+			this.scrollPastEndObserver = new ViewResizeObserver(() => this.updateScrollPastEnd());
+		}
 		await this.render(false);
 	}
 
 	protected onClose(): Promise<void> {
 		this.opened = false;
+		this.scrollPastEndObserver?.disconnect();
+		this.scrollPastEndObserver = null;
 		this.disposeTranslationMenu();
 		this.disposeReferenceSuggest();
 		this.captureScrollAnchor();
@@ -121,6 +130,11 @@ export class ScriptureSidebarView extends ItemView {
 		if (!this.readingEl) return;
 		this.readingEl.removeClass('bible-numbers-none', 'bible-numbers-first', 'bible-numbers-all');
 		this.readingEl.addClass(this.getVerseNumberDisplayClass());
+		window.requestAnimationFrame(() => this.updateScrollPastEnd());
+	}
+
+	onResize(): void {
+		this.updateScrollPastEnd();
 	}
 
 	private markUsed(): void {
@@ -131,6 +145,7 @@ export class ScriptureSidebarView extends ItemView {
 
 	private async render(preserveAnchor: boolean): Promise<void> {
 		if (preserveAnchor) this.captureScrollAnchor();
+		this.scrollPastEndObserver?.disconnect();
 		this.disposeTranslationMenu();
 		this.disposeReferenceSuggest();
 		const version = ++this.renderVersion;
@@ -151,6 +166,7 @@ export class ScriptureSidebarView extends ItemView {
 		this.contentEl.removeAttribute('aria-busy');
 		this.contentEl.empty();
 		this.readingEl = null;
+		this.scrollPastEndEl = null;
 		this.referenceInputEl = null;
 		const toolbar = this.contentEl.createDiv({ cls: 'scripture-sidebar-toolbar' });
 		const previousNavigation = toolbar.createDiv({
@@ -214,14 +230,25 @@ export class ScriptureSidebarView extends ItemView {
 		this.createNavigationButton(previousNavigation, 'Previous chapter', 'chevron-left', chapters[currentIndex - 1], currentIndex <= 0);
 		this.createNavigationButton(nextNavigation, 'Next chapter', 'chevron-right', chapters[currentIndex + 1], currentIndex < 0 || currentIndex >= chapters.length - 1);
 
-		this.readingEl = this.contentEl.createDiv({ cls: ['scripture-sidebar-reading', this.getVerseNumberDisplayClass()] });
-		const readingContent = this.readingEl.createDiv({ cls: 'scripture-sidebar-reading-content' });
+		const readingEl = this.contentEl.createDiv({ cls: ['scripture-sidebar-reading', this.getVerseNumberDisplayClass()] });
+		this.readingEl = readingEl;
+		const readingContent = readingEl.createDiv({ cls: 'scripture-sidebar-reading-content' });
 		this.renderVerses(readingContent, chapter.verses);
-		this.readingEl.addEventListener('scroll', () => {
+		this.scrollPastEndEl = readingEl.createDiv({
+			cls: 'scripture-sidebar-scroll-past-end',
+			attr: { 'aria-hidden': 'true' },
+		});
+		this.scrollPastEndObserver?.observe(readingEl);
+		this.scrollPastEndObserver?.observe(readingContent);
+		readingEl.addEventListener('scroll', () => {
 			this.captureScrollAnchor();
 			this.markUsed();
 		});
-		window.requestAnimationFrame(() => this.restoreScrollAnchor(chapter));
+		window.requestAnimationFrame(() => {
+			if (this.readingEl !== readingEl) return;
+			this.updateScrollPastEnd();
+			this.restoreScrollAnchor(chapter);
+		});
 	}
 
 	private getVerseNumberDisplayClass(): string {
@@ -489,6 +516,34 @@ export class ScriptureSidebarView extends ItemView {
 		this.readingEl
 			.createDiv({ cls: 'scripture-sidebar-reading-content' })
 			.createEl('p', { text: message });
+	}
+
+	private updateScrollPastEnd(): void {
+		const readingEl = this.readingEl;
+		const spacerEl = this.scrollPastEndEl;
+		if (!readingEl?.isConnected || !spacerEl?.isConnected) return;
+
+		const lastVerse = Array.from(readingEl.querySelectorAll<HTMLElement>('[data-scripture-verse]')).at(-1);
+		if (!lastVerse) return;
+		const range = readingEl.ownerDocument.createRange();
+		range.selectNodeContents(lastVerse);
+		const renderedLineRects = Array.from(range.getClientRects()).filter(rect => rect.height > 0);
+		const lastLineRect = renderedLineRects.at(-1) || lastVerse.getBoundingClientRect();
+		const readingRect = readingEl.getBoundingClientRect();
+		const spacerRect = spacerEl.getBoundingClientRect();
+		const computedStyle = readingEl.ownerDocument.defaultView?.getComputedStyle(readingEl);
+		if (!computedStyle) return;
+
+		const spacerHeight = calculateScrollPastEndSpacerHeight({
+			clientHeight: readingEl.clientHeight,
+			scrollTop: readingEl.scrollTop,
+			readingTop: readingRect.top,
+			lastLineTop: lastLineRect.top,
+			spacerTop: spacerRect.top,
+			paddingTop: Number.parseFloat(computedStyle.paddingTop) || 0,
+			paddingBottom: Number.parseFloat(computedStyle.paddingBottom) || 0,
+		});
+		readingEl.style.setProperty('--scripture-sidebar-scroll-past-end-height', `${spacerHeight}px`);
 	}
 
 	private resetAnchor(chapter: BibleChapter): void {

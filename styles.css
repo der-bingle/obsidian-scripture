@@ -699,6 +699,11 @@ body:not(.bible-text-justify) .bible .cm-line {
 	line-height: var(--scripture-sidebar-line-height);
 }
 
+.scripture-sidebar-scroll-past-end {
+	height: var(--scripture-sidebar-scroll-past-end-height, 0);
+	pointer-events: none;
+}
+
 .workspace-leaf-content[data-type="scripture-sidebar"] .scripture-sidebar-view .scripture-sidebar-reading {
 	-webkit-user-select: text;
 	user-select: text;
