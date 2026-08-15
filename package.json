@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-scripture",
 	"version": "0.9.1",
-	"description": "Comprehensive scripture study plugin for Obsidian with reference insertion, translation management, and Bible note formatting",
+	"description": "Insert and read Bible passages from local translations, navigate chapter notes and sidebars, and render interactive Scripture lists.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
