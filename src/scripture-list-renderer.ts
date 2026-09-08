@@ -1,4 +1,4 @@
-import { App, MarkdownView, Notice, setIcon, TFile } from 'obsidian';
+import { App, MarkdownView, Notice, setIcon } from 'obsidian';
 import type { Editor, MarkdownPostProcessorContext, MarkdownSectionInformation, WorkspaceLeaf } from 'obsidian';
 import { detectReferences } from 'scripture-references';
 import type { PassageReference, PassageMatch } from 'scripture-references';
@@ -9,12 +9,15 @@ import { formatReferenceDisplay } from './reference-format';
 import { resolveExistingScriptureTarget, resolveScriptureLink } from './scripture-link';
 import { parseScriptureListInput } from './scripture-list-parser';
 import type { ParsedScriptureListEntry } from './scripture-list-parser';
+import { findScriptureListSourceRange, updateScriptureListSource } from './scripture-list-source';
+import type { ScriptureListSourceUpdate } from './scripture-list-source';
 import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state';
 
 type ScriptureListButtonPosition = 'top' | 'bottom' | 'inline';
 type ScriptureListAction = 'edit' | 'add' | 'paste';
 export interface ScriptureListRenderContext {
 	sourcePath: string;
+	source: string;
 	containerEl: HTMLElement;
 	getSectionInfo: () => MarkdownSectionInformation | null;
 }
@@ -25,9 +28,11 @@ export interface ScriptureListRendererCallbacks {
 
 export const createScriptureListRenderContext = (
 	containerEl: HTMLElement,
-	ctx: MarkdownPostProcessorContext
+	ctx: MarkdownPostProcessorContext,
+	source: string,
 ): ScriptureListRenderContext => ({
 	sourcePath: ctx.sourcePath,
+	source,
 	containerEl,
 	getSectionInfo: () => ctx.getSectionInfo(containerEl)
 });
@@ -239,39 +244,11 @@ export class ScriptureListRenderer {
 			return;
 		}
 
-		const sectionInfo = renderContext.getSectionInfo();
-		if (!sectionInfo) {
-			return;
-		}
-
-		const file = this.app.vault.getAbstractFileByPath(renderContext.sourcePath);
-		if (!(file instanceof TFile)) {
-			return;
-		}
-
 		try {
-			await this.app.vault.process(file, (content) => {
-				const lines = content.split('\n');
-				const codeBlockRange = this.resolveCodeBlockRangeFromLines(lines, sectionInfo);
-				if (!codeBlockRange) {
-					return content;
-				}
-
-				const startLine = codeBlockRange.lineStart + 1;
-				const endLine = codeBlockRange.lineEnd;
-
-				if (startLine > endLine || startLine < 0 || endLine > lines.length) {
-					return content;
-				}
-
-				const currentSource = lines.slice(startLine, endLine).join('\n');
-				if (currentSource === normalizedSource) {
-					return content;
-				}
-
-				lines.splice(startLine, endLine - startLine, ...normalizedSource.split('\n'));
-				return lines.join('\n');
-			});
+			const didNormalize = await this.updateCodeBlockSource(renderContext, source, normalizedSource);
+			if (didNormalize) {
+				renderContext.source = normalizedSource;
+			}
 		} catch (error) {
 			console.error('Failed to normalize scriptureList source:', error);
 		}
@@ -1093,9 +1070,9 @@ export class ScriptureListRenderer {
 			let target: CodeBlockCursorTarget | null;
 
 			if (action === 'add') {
-				target = this.addBlankLineToCodeBlock(editor, sectionInfo);
+				target = this.addBlankLineToCodeBlock(editor, sectionInfo, renderContext.source);
 			} else {
-				target = this.getCodeBlockCursorTarget(editor, sectionInfo);
+				target = this.getCodeBlockCursorTarget(editor, sectionInfo, renderContext.source);
 				if (target) {
 					this.placeCursorInEditor(editor, target);
 				}
@@ -1123,32 +1100,16 @@ export class ScriptureListRenderer {
 	}
 
 	private async appendLinesToCodeBlockSource(renderContext: ScriptureListRenderContext, linesToAppend: string[]): Promise<void> {
-		const sectionInfo = renderContext.getSectionInfo();
-		if (!sectionInfo) {
-			new Notice('Unable to locate Scripture list');
-			return;
-		}
-
-		const file = this.app.vault.getAbstractFileByPath(renderContext.sourcePath);
-		if (!(file instanceof TFile)) {
-			new Notice('Unable to locate Scripture list file');
-			return;
-		}
-
-		let didAppend = false;
+		const separator = renderContext.source.length > 0 ? '\n' : '';
+		const replacementSource = `${renderContext.source}${separator}${linesToAppend.join('\n')}`;
+		let didAppend: boolean;
 
 		try {
-			await this.app.vault.process(file, (content) => {
-				const lines = content.split('\n');
-				const codeBlockRange = this.resolveCodeBlockRangeFromLines(lines, sectionInfo);
-				if (!codeBlockRange) {
-					return content;
-				}
-
-				lines.splice(codeBlockRange.lineEnd, 0, ...linesToAppend);
-				didAppend = true;
-				return lines.join('\n');
-			});
+			didAppend = await this.updateCodeBlockSource(
+				renderContext,
+				renderContext.source,
+				replacementSource,
+			);
 		} catch (error) {
 			console.error('Failed to append scripture list reference:', error);
 			new Notice('Failed to update Scripture list');
@@ -1156,6 +1117,7 @@ export class ScriptureListRenderer {
 		}
 
 		if (didAppend) {
+			renderContext.source = replacementSource;
 			new Notice(linesToAppend.length === 1
 				? `Added ${linesToAppend[0]} to scripture list`
 				: `Added ${linesToAppend.length} references to scripture list`
@@ -1165,24 +1127,85 @@ export class ScriptureListRenderer {
 		}
 	}
 
+	private async updateCodeBlockSource(
+		renderContext: ScriptureListRenderContext,
+		expectedSource: string,
+		replacementSource: string,
+	): Promise<boolean> {
+		const sectionInfo = renderContext.getSectionInfo() ?? undefined;
+		const markdownView = this.getMarkdownViewForRenderContext(this.app, renderContext);
+
+		if (markdownView?.getMode() === 'source') {
+			const editor = markdownView.editor;
+			const update = updateScriptureListSource(
+				editor.getValue(),
+				expectedSource,
+				replacementSource,
+				sectionInfo,
+			);
+			if (!update.changed || !update.range) return false;
+
+			this.applyEditorSourceUpdate(editor, update);
+			return true;
+		}
+
+		const file = this.app.vault.getFileByPath(renderContext.sourcePath);
+		if (!file) return false;
+
+		let didUpdate = false;
+		await this.app.vault.process(file, content => {
+			const update = updateScriptureListSource(
+				content,
+				expectedSource,
+				replacementSource,
+				sectionInfo,
+			);
+			didUpdate = update.changed;
+			return update.content;
+		});
+
+		return didUpdate;
+	}
+
+	private applyEditorSourceUpdate(editor: Editor, update: ScriptureListSourceUpdate): void {
+		if (!update.range) return;
+		const from = { line: update.range.lineStart + 1, ch: 0 };
+		const to = { line: update.range.lineEnd, ch: 0 };
+		editor.transaction({
+			changes: [{
+				from,
+				to,
+				text: update.replacementSource.length > 0 ? `${update.replacementSource}\n` : '',
+			}],
+		});
+	}
+
 	private getMarkdownViewForRenderContext(app: App, renderContext: ScriptureListRenderContext): MarkdownView | null {
-		let matchingView: MarkdownView | null = null;
+		let containingView: MarkdownView | null = null;
+		let fileView: MarkdownView | null = null;
 
 		app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
-			if (matchingView || !(leaf.view instanceof MarkdownView)) {
+			if (!(leaf.view instanceof MarkdownView) || leaf.view.file?.path !== renderContext.sourcePath) {
 				return;
 			}
 
 			if (leaf.view.containerEl.contains(renderContext.containerEl)) {
-				matchingView = leaf.view;
+				containingView = leaf.view;
+				return;
 			}
+
+			fileView ??= leaf.view;
 		});
 
-		return matchingView ?? app.workspace.getActiveViewOfType(MarkdownView);
+		return containingView ?? fileView;
 	}
 
-	private getCodeBlockCursorTarget(editor: Editor, sectionData: MarkdownSectionInformation | null): CodeBlockCursorTarget | null {
-		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
+	private getCodeBlockCursorTarget(
+		editor: Editor,
+		sectionData: MarkdownSectionInformation | null,
+		expectedSource: string,
+	): CodeBlockCursorTarget | null {
+		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData, expectedSource);
 		if (!codeBlockRange) {
 			return null;
 		}
@@ -1198,8 +1221,15 @@ export class ScriptureListRenderer {
 		};
 	}
 
-	private resolveCodeBlockRange(editor: Editor, sectionData?: MarkdownSectionInformation | null): { lineStart: number; lineEnd: number } | null {
+	private resolveCodeBlockRange(
+		editor: Editor,
+		sectionData?: MarkdownSectionInformation | null,
+		expectedSource?: string,
+	): { lineStart: number; lineEnd: number } | null {
 		const content = editor.getValue();
+		if (expectedSource !== undefined) {
+			return findScriptureListSourceRange(content, expectedSource, sectionData ?? undefined);
+		}
 		const lines = content.split('\n');
 
 		return this.resolveCodeBlockRangeFromLines(lines, sectionData);
@@ -1279,8 +1309,12 @@ export class ScriptureListRenderer {
 		}, 75);
 	}
 
-	private addBlankLineToCodeBlock(editor: Editor, sectionData: MarkdownSectionInformation | null): CodeBlockCursorTarget | null {
-		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData);
+	private addBlankLineToCodeBlock(
+		editor: Editor,
+		sectionData: MarkdownSectionInformation | null,
+		expectedSource: string,
+	): CodeBlockCursorTarget | null {
+		const codeBlockRange = this.resolveCodeBlockRange(editor, sectionData, expectedSource);
 		if (!codeBlockRange) {
 			return null;
 		}

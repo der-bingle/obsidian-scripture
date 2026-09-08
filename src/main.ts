@@ -94,7 +94,7 @@ export default class Scripture extends Plugin {
 
 		// Register scriptureList codeblock processor
 		this.registerMarkdownCodeBlockProcessor('scriptureList', async (source, el, ctx) => {
-			const renderContext = createScriptureListRenderContext(el, ctx);
+			const renderContext = createScriptureListRenderContext(el, ctx, source);
 			const renderer = new ScriptureListRenderer(
 				this.app,
 				this.dataLoader,
