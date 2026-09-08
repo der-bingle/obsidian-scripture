@@ -1,54 +1,49 @@
-# Graph Report - .  (2026-09-08)
+# Graph Report - scripture  (2026-09-08)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 55 files · ~31,241 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 551 nodes · 1199 edges · 32 communities (18 shown, 14 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
+- 645 nodes · 1354 edges · 26 communities (20 shown, 6 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fadc9573`
+- Built from commit: `5b18dc31`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Scripture Reference Parsing|Scripture Reference Parsing]]
-- [[_COMMUNITY_Bible Data Loading|Bible Data Loading]]
-- [[_COMMUNITY_Bible Translation Navigation|Bible Translation Navigation]]
-- [[_COMMUNITY_Project Dependencies Metadata|Project Dependencies Metadata]]
-- [[_COMMUNITY_Scripture Insertion Management|Scripture Insertion Management]]
-- [[_COMMUNITY_Reference Formatting Utilities|Reference Formatting Utilities]]
-- [[_COMMUNITY_Verse Callout Formatting|Verse Callout Formatting]]
-- [[_COMMUNITY_Scripture Modal UI|Scripture Modal UI]]
-- [[_COMMUNITY_TypeScript Compiler Settings|TypeScript Compiler Settings]]
-- [[_COMMUNITY_Bible Note Title Management|Bible Note Title Management]]
-- [[_COMMUNITY_Source Code Files|Source Code Files]]
-- [[_COMMUNITY_Scripture Settings UI|Scripture Settings UI]]
-- [[_COMMUNITY_Project Manifest Metadata|Project Manifest Metadata]]
-- [[_COMMUNITY_Scripture Note Switching UI|Scripture Note Switching UI]]
-- [[_COMMUNITY_Scripture Reference Types|Scripture Reference Types]]
-- [[_COMMUNITY_Version Management|Version Management]]
-- [[_COMMUNITY_Claude Code Instructions|Claude Code Instructions]]
-- [[_COMMUNITY_Contributing Guidelines|Contributing Guidelines]]
-- [[_COMMUNITY_Build Configuration|Build Configuration]]
-- [[_COMMUNITY_Scripture Obsidian Integration|Scripture Obsidian Integration]]
-- [[_COMMUNITY_Technical Debt|Technical Debt]]
-- [[_COMMUNITY_Technical Debt Planning|Technical Debt Planning]]
-- [[_COMMUNITY_Sidebar Implementation Plan|Sidebar Implementation Plan]]
-- [[_COMMUNITY_Contribution Workflow|Contribution Workflow]]
-- [[_COMMUNITY_Community 24|Community 24]]
-- [[_COMMUNITY_Copilot Project Instructions|Copilot Project Instructions]]
-- [[_COMMUNITY_Bible Data Validation|Bible Data Validation]]
-- [[_COMMUNITY_Bible Note Utilities|Bible Note Utilities]]
-- [[_COMMUNITY_Reference Format Module|Reference Format Module]]
-- [[_COMMUNITY_Scripture List Parsing|Scripture List Parsing]]
-- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Scripture list rendering|Scripture list rendering]]
+- [[_COMMUNITY_Chapter navigator|Chapter navigator]]
+- [[_COMMUNITY_Plugin core Scripture|Plugin core Scripture]]
+- [[_COMMUNITY_Bible note titles|Bible note titles]]
+- [[_COMMUNITY_Callout formatting|Callout formatting]]
+- [[_COMMUNITY_Sidebar view UI|Sidebar view UI]]
+- [[_COMMUNITY_Docs and concepts|Docs and concepts]]
+- [[_COMMUNITY_Main and sidebar state|Main and sidebar state]]
+- [[_COMMUNITY_Package dependencies|Package dependencies]]
+- [[_COMMUNITY_Bible data loading|Bible data loading]]
+- [[_COMMUNITY_Scripture linking|Scripture linking]]
+- [[_COMMUNITY_AGENTS architecture guide|AGENTS architecture guide]]
+- [[_COMMUNITY_Release and tech debt|Release and tech debt]]
+- [[_COMMUNITY_Reference input suggest|Reference input suggest]]
+- [[_COMMUNITY_TypeScript config|TypeScript config]]
+- [[_COMMUNITY_Passage insertion modal|Passage insertion modal]]
+- [[_COMMUNITY_Settings tab UI|Settings tab UI]]
+- [[_COMMUNITY_Plugin manifest|Plugin manifest]]
+- [[_COMMUNITY_Note switcher modal|Note switcher modal]]
+- [[_COMMUNITY_Technical debt doc|Technical debt doc]]
+- [[_COMMUNITY_Sidebar plan doc|Sidebar plan doc]]
+- [[_COMMUNITY_Contributing guide|Contributing guide]]
+- [[_COMMUNITY_Passage reference types|Passage reference types]]
+- [[_COMMUNITY_Claude instructions|Claude instructions]]
+- [[_COMMUNITY_Copilot instructions|Copilot instructions]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Scripture` - 63 edges
-2. `ScriptureListRenderer` - 56 edges
+2. `ScriptureListRenderer` - 58 edges
 3. `ScriptureSidebarView` - 47 edges
 4. `BibleTranslation` - 43 edges
 5. `ScriptureSettings` - 34 edges
@@ -59,113 +54,122 @@
 10. `BibleNoteTitleManager` - 19 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Version consistency guardrails` --references--> `release-manual workflow`  [EXTRACTED]
-  technical-debt-remediation-plan.html → .github/workflows/manual-release.yaml
-- `TranslationOption` --references--> `BibleTranslation`  [EXTRACTED]
-  src/bible-chapter-navigator.ts → src/types.ts
-- `BibleNoteInfo` --references--> `BibleTranslation`  [EXTRACTED]
-  src/bible-note-utils.ts → src/types.ts
-- `ScriptureLinkResolution` --references--> `BibleTranslation`  [EXTRACTED]
-  src/scripture-link.ts → src/types.ts
-- `LegacyScriptureSettings` --references--> `ReferenceFormat`  [EXTRACTED]
-  src/settings-migrations.ts → src/types.ts
+- `src/settings-migrations.ts` --semantically_similar_to--> `src/scripture-list-parser.ts`  [INFERRED] [semantically similar]
+  AGENTS.md → src/scripture-list-parser.ts
+- `Architecture` --references--> `src/bible-data-loader.ts`  [EXTRACTED]
+  AGENTS.md → src/bible-data-loader.ts
+- `Architecture` --references--> `src/bible-note-utils.ts`  [EXTRACTED]
+  AGENTS.md → src/bible-note-utils.ts
+- `Architecture` --references--> `src/reference-format.ts`  [EXTRACTED]
+  AGENTS.md → src/reference-format.ts
+- `src/callout-formatter.ts` --conceptually_related_to--> `src/reference-format.ts`  [INFERRED]
+  AGENTS.md → src/reference-format.ts
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
-- **Manual release pipeline** — workflows_manual_release_version_determination, workflows_manual_release_version_metadata_sync, workflows_manual_release_release_tag_creation, workflows_manual_release_production_build, workflows_manual_release_release_artifact_verification, workflows_manual_release_github_release_publication [EXTRACTED 1.00]
-- **Staged debt remediation phases** — technical_debt_remediation_plan_version_consistency_guardrails, technical_debt_remediation_plan_scripture_list_modularization, technical_debt_remediation_plan_plugin_shell, technical_debt_remediation_plan_settings_modularization, technical_debt_remediation_plan_compatibility_shim_isolation, technical_debt_remediation_plan_css_fixture_matrix, technical_debt_remediation_plan_cross_platform_validation [EXTRACTED 1.00]
+- **Architecture module map** — agents_architecture, agents_main_ts, agents_modal_ts, agents_scripture_list_renderer_ts, agents_callout_formatter_ts, agents_reference_format_ts, agents_bible_data_loader_ts, agents_bible_note_utils_ts, agents_settings_ts, agents_types_ts, agents_settings_migrations_ts, agents_scripture_list_parser_ts [EXTRACTED 1.00]
+- **Public compatibility surface** — agents_compatibility_contracts, agents_scripture_api, agents_scripturelist_syntax, agents_public_api_alias, agents_chapter_note_frontmatter_ids [EXTRACTED 1.00]
+- **Release and Graphify sequence** — agents_release_and_repository_hygiene, agents_graphify_release_workflow, agents_brat_main_vault_deploy, agents_technical_debt_md [INFERRED 0.85]
 
-## Communities (32 total, 14 thin omitted)
+## Communities (26 total, 6 thin omitted)
 
-### Community 0 - "Scripture Reference Parsing"
-Cohesion: 0.10
-Nodes (33): BibleDataLoader, AppWithPlugins, ScriptureNoteSuggestion, cloneScriptureSidebarState(), createInstanceId(), createScriptureSidebarState(), getScriptureSidebarNavigationTarget(), isRecord() (+25 more)
+### Community 0 - "Scripture list rendering"
+Cohesion: 0.05
+Nodes (24): ParsedScriptureListEntry, parseScriptureListInput(), CodeBlockCursorTarget, createScriptureListRenderContext(), escapeRegExp(), MarkdownViewWithSetMode, parseReferenceAndTranslationFromTranslations(), ScriptureListAction (+16 more)
 
-### Community 1 - "Bible Data Loading"
+### Community 2 - "Plugin core Scripture"
 Cohesion: 0.08
-Nodes (5): escapeRegExp(), parseReferenceAndTranslationFromTranslations(), ScriptureListRenderer, SourceLineReference, ProcessedReference
+Nodes (4): InsertionTarget, Scripture, ScriptureCalloutOptions, ScriptureCalloutResult
 
-### Community 2 - "Bible Translation Navigation"
-Cohesion: 0.07
-Nodes (20): BibleChapterNavigator, TranslationOption, TranslationSelectorModal, BibleLeafInfo, ManagedLeafTitle, BibleNoteChapterReference, BibleNoteInfo, getBibleNoteChapterKey() (+12 more)
+### Community 3 - "Bible note titles"
+Cohesion: 0.06
+Nodes (21): BibleChapterNavigator, TranslationOption, TranslationSelectorModal, BibleLeafInfo, BibleNoteTitleManager, ManagedLeafTitle, BibleNoteChapterReference, BibleNoteInfo (+13 more)
 
-### Community 3 - "Project Dependencies Metadata"
-Cohesion: 0.08
-Nodes (4): Scripture, getSidebarDefaultTranslation(), ScriptureCalloutOptions, ScriptureCalloutResult
+### Community 4 - "Callout formatting"
+Cohesion: 0.11
+Nodes (15): CalloutFormatter, buildEnglishAbbrevMap(), formatChapterDisplay(), formatPassageReferenceDisplay(), formatReferenceDisplay(), getBookDisplayName(), getEnglishAbbreviation(), ReferenceDisplayOptions (+7 more)
 
-### Community 4 - "Scripture Insertion Management"
+### Community 5 - "Sidebar view UI"
 Cohesion: 0.09
-Nodes (5): ScriptureSidebarView, calculateScrollPastEndSpacerHeight(), ScrollPastEndMetrics, BibleChapter, BibleVerseData
+Nodes (4): ScriptureSidebarView, BibleBook, BibleChapter, BibleVerseData
 
-### Community 5 - "Reference Formatting Utilities"
+### Community 6 - "Docs and concepts"
+Cohesion: 0.06
+Nodes (51): Bible chapter notes, Bible translation JSON, Chapter frontmatter ID, User-invoked clipboard access, Commands, Configuration, Configured notes path, Consolidated Bible notes (+43 more)
+
+### Community 7 - "Main and sidebar state"
 Cohesion: 0.12
-Nodes (15): CalloutFormatter, InsertionTarget, buildEnglishAbbrevMap(), formatChapterDisplay(), formatPassageReferenceDisplay(), formatReferenceDisplay(), getBookDisplayName(), getEnglishAbbreviation() (+7 more)
+Nodes (22): AppWithPlugins, cloneScriptureSidebarState(), createInstanceId(), createScriptureSidebarState(), getScriptureSidebarNavigationTarget(), getSidebarDefaultTranslation(), isRecord(), parseScriptureSidebarState() (+14 more)
 
-### Community 6 - "Verse Callout Formatting"
-Cohesion: 0.10
-Nodes (25): getDefaultNoteTranslation(), getEffectiveLinkingStrategy(), getNoteTranslations(), getRequestedNoteTranslation(), getScriptureNoteTitle(), joinVaultPath(), LinkpathResolver, resolveExistingScriptureTarget() (+17 more)
-
-### Community 7 - "Scripture Modal UI"
+### Community 8 - "Package dependencies"
 Cohesion: 0.07
 Nodes (29): author, dependencies, scripture-references, description, devDependencies, esbuild, eslint, @eslint/js (+21 more)
 
-### Community 8 - "TypeScript Compiler Settings"
+### Community 9 - "Bible data loading"
+Cohesion: 0.08
+Nodes (27): BibleDataLoader, BibleDataValidationResult, invalid(), isBibleData(), isNonEmptyString(), isNonNegativeInteger(), isPositiveInteger(), isRecord() (+19 more)
+
+### Community 10 - "Scripture linking"
 Cohesion: 0.11
-Nodes (22): Canonical release design, Compatibility shim isolation, Desktop and mobile validation, CSS fixture validation matrix, Technical debt definition of done, Minimum Obsidian version 1.9.0, Single-responsibility plugin shell, Reproducible attested release (+14 more)
+Nodes (29): getDefaultNoteTranslation(), getEffectiveLinkingStrategy(), getNoteTranslations(), getRequestedNoteTranslation(), getScriptureNoteTitle(), joinVaultPath(), LinkpathResolver, resolveExistingScriptureTarget() (+21 more)
 
-### Community 9 - "Bible Note Title Management"
-Cohesion: 0.22
-Nodes (16): addFencedCodeRanges(), addFrontmatterRange(), addReferenceDefinitionRanges(), convertScriptureReferencesToLinks(), findBalancedClosingParenthesis(), findClosingBracket(), findProtectedMarkdownRanges(), getInlineCodeEnd() (+8 more)
+### Community 11 - "AGENTS architecture guide"
+Cohesion: 0.11
+Nodes (25): Architecture, src/bible-data-loader.ts, src/bible-note-utils.ts, BRAT main-vault deploy, src/callout-formatter.ts, Chapter-note frontmatter IDs, Coding conventions, Commands (+17 more)
 
-### Community 10 - "Source Code Files"
-Cohesion: 0.12
-Nodes (16): compilerOptions, allowSyntheticDefaultImports, forceConsistentCasingInFileNames, inlineSourceMap, inlineSources, isolatedModules, lib, module (+8 more)
+### Community 12 - "Release and tech debt"
+Cohesion: 0.11
+Nodes (21): GitHub Releases, Plugin release assets, Canonical release design, Compatibility shim isolation, Desktop and mobile validation, CSS fixture validation matrix, Technical debt definition of done, Minimum Obsidian version 1.9.0 (+13 more)
 
-### Community 11 - "Scripture Settings UI"
+### Community 13 - "Reference input suggest"
 Cohesion: 0.20
 Nodes (5): NavigateToReference, ScriptureReferenceInputSuggest, getScriptureReferenceSuggestions(), ScriptureReferenceSuggestion, referencesFor()
 
-### Community 15 - "Version Management"
-Cohesion: 0.31
-Nodes (9): BibleDataValidationResult, invalid(), isBibleData(), isNonEmptyString(), isNonNegativeInteger(), isPositiveInteger(), isRecord(), validateBibleData() (+1 more)
+### Community 14 - "TypeScript config"
+Cohesion: 0.12
+Nodes (16): compilerOptions, allowSyntheticDefaultImports, forceConsistentCasingInFileNames, inlineSourceMap, inlineSources, isolatedModules, lib, module (+8 more)
 
-### Community 16 - "Claude Code Instructions"
+### Community 17 - "Plugin manifest"
 Cohesion: 0.20
 Nodes (9): author, authorUrl, description, fundingUrl, id, isDesktopOnly, minAppVersion, name (+1 more)
 
-### Community 17 - "Contributing Guidelines"
+### Community 18 - "Note switcher modal"
 Cohesion: 0.24
 Nodes (3): FileSuggest, FolderSuggest, VaultPathSuggest
 
-### Community 18 - "Build Configuration"
-Cohesion: 0.25
-Nodes (7): Architecture, Coding conventions, Commands, Compatibility contracts, Project, Release and repository hygiene, Testing
+### Community 19 - "Technical debt doc"
+Cohesion: 0.33
+Nodes (5): Compatibility-sensitive work, CSS and release operations, Deferred architecture, Technical debt, Upstream baseline
 
-### Community 21 - "Technical Debt Planning"
-Cohesion: 0.60
-Nodes (3): isTrue(), parseScriptureSidebarUriRequest(), ScriptureSidebarUriRequest
+### Community 20 - "Sidebar plan doc"
+Cohesion: 0.40
+Nodes (4): Compatibility and verification, Decided behavior, Implementation checklist, Scripture Sidebar Implementation Plan
+
+### Community 21 - "Contributing guide"
+Cohesion: 0.50
+Nodes (3): Contributing, Development, Reports and proposals
 
 ## Knowledge Gaps
-- **102 isolated node(s):** `Project`, `Commands`, `Architecture`, `Compatibility contracts`, `Coding conventions` (+97 more)
+- **121 isolated node(s):** `id`, `name`, `version`, `minAppVersion`, `description` (+116 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ScriptureListRenderer` connect `Bible Data Loading` to `Scripture Reference Parsing`, `Bible Translation Navigation`, `Reference Formatting Utilities`, `Verse Callout Formatting`?**
-  _High betweenness centrality (0.119) - this node is a cross-community bridge._
-- **Why does `Scripture` connect `Project Dependencies Metadata` to `Scripture Reference Parsing`, `Bible Translation Navigation`, `Reference Formatting Utilities`, `Project Manifest Metadata`, `Scripture Reference Types`?**
-  _High betweenness centrality (0.112) - this node is a cross-community bridge._
-- **Why does `ScriptureSidebarView` connect `Scripture Insertion Management` to `Scripture Reference Parsing`, `Scripture Settings UI`, `Project Dependencies Metadata`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
-- **What connects `Project`, `Commands`, `Architecture` to the rest of the system?**
-  _106 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Scripture Reference Parsing` be split into smaller, more focused modules?**
-  _Cohesion score 0.09679370840895342 - nodes in this community are weakly interconnected._
-- **Should `Bible Data Loading` be split into smaller, more focused modules?**
-  _Cohesion score 0.07982583454281568 - nodes in this community are weakly interconnected._
-- **Should `Bible Translation Navigation` be split into smaller, more focused modules?**
-  _Cohesion score 0.07020408163265306 - nodes in this community are weakly interconnected._
+- **Why does `ScriptureListRenderer` connect `Scripture list rendering` to `Bible data loading`, `Bible note titles`, `Callout formatting`, `Main and sidebar state`?**
+  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+- **Why does `Scripture` connect `Plugin core Scripture` to `Bible note titles`, `Callout formatting`, `Main and sidebar state`, `Bible data loading`, `Settings tab UI`?**
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `ScriptureSidebarView` connect `Sidebar view UI` to `Bible data loading`, `Plugin core Scripture`, `Reference input suggest`, `Main and sidebar state`?**
+  _High betweenness centrality (0.074) - this node is a cross-community bridge._
+- **What connects `id`, `name`, `version` to the rest of the system?**
+  _126 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Scripture list rendering` be split into smaller, more focused modules?**
+  _Cohesion score 0.05123456790123457 - nodes in this community are weakly interconnected._
+- **Should `Plugin core Scripture` be split into smaller, more focused modules?**
+  _Cohesion score 0.07568027210884354 - nodes in this community are weakly interconnected._
+- **Should `Bible note titles` be split into smaller, more focused modules?**
+  _Cohesion score 0.05654761904761905 - nodes in this community are weakly interconnected._
