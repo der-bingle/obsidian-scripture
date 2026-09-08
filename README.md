@@ -116,6 +116,8 @@ To retain a single canonical note set while reading other translations from JSON
 
 The plugin does not move or rewrite existing notes or Markdown automatically.
 
+Use **Convert references to wikilinks** to convert Scripture references in the active note, or only the current selection when text is selected. Generated links use the three **Scripture links** settings. Frontmatter, code, existing wikilinks, and Markdown links are left unchanged, so the command can be run again safely.
+
 ## Commands
 
 Command IDs remain stable for hotkeys and integrations.
@@ -124,6 +126,7 @@ Command IDs remain stable for hotkeys and integrations.
 | --- | --- |
 | Insert | `insert-scripture` |
 | Insert link | `insert-scripture-link` |
+| Convert references to wikilinks | `convert-scripture-references-to-wikilinks` |
 | Open note | `open-scripture-note` |
 | Open from clipboard | `open-scripture-from-clipboard` |
 | Open sidebar from clipboard | `open-scripture-sidebar-from-clipboard` |

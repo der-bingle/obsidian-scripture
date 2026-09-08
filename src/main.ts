@@ -21,6 +21,7 @@ import type { ScriptureSidebarNavigationTarget } from './scripture-sidebar-state
 import { SCRIPTURE_SIDEBAR_VIEW_TYPE, ScriptureSidebarView } from './scripture-sidebar-view';
 import { parseScriptureSidebarUriRequest } from './scripture-sidebar-uri';
 import { orderTranslations } from './translation-order';
+import { convertScriptureReferencesToLinks } from './scripture-reference-links';
 
 interface AppWithPlugins extends App {
 	plugins: {
@@ -200,6 +201,27 @@ export default class Scripture extends Plugin {
 					'Insert scripture link'
 				).open();
 			}
+		});
+
+		this.addCommand({
+			id: 'convert-scripture-references-to-wikilinks',
+			name: 'Convert references to wikilinks',
+			icon: 'links-coming-in',
+			editorCallback: (editor: Editor) => {
+				const hasSelection = editor.somethingSelected();
+				const from = hasSelection ? editor.getCursor('from') : { line: 0, ch: 0 };
+				const to = hasSelection ? editor.getCursor('to') : editor.offsetToPos(editor.getValue().length);
+				const source = editor.getRange(from, to);
+				const result = convertScriptureReferencesToLinks(source, this.settings);
+
+				if (result.count === 0) {
+					new Notice('No Scripture references to convert');
+					return;
+				}
+
+				editor.transaction({ changes: [{ from, to, text: result.text }] });
+				new Notice(`Converted ${result.count} Scripture ${result.count === 1 ? 'reference' : 'references'}`);
+			},
 		});
 
 		// Add command to navigate between Bible chapter translations

@@ -1,4 +1,5 @@
 import { book_abbrev_english } from 'scripture-references';
+import type { PassageReference } from 'scripture-references';
 import type { BibleVerse, ReferenceFormat, ScriptureSettings } from './types';
 
 interface ReferenceDisplayOptions {
@@ -73,6 +74,27 @@ export function getBookDisplayName(bookName: string, referenceFormat: ReferenceF
 		case 'english-abbrev':
 			return toTitleCaseAbbreviation(getEnglishAbbreviation(bookName) || STANDARD_BOOK_ABBREVIATIONS[bookName] || bookName);
 		case 'full-name':
+		default:
+			return bookName;
+	}
+}
+
+export function formatPassageReferenceDisplay(ref: PassageReference, referenceFormat: ReferenceFormat): string {
+	const bookName = getBookDisplayName(ref.getBookName(), referenceFormat);
+	const prefix = bookName ? `${bookName} ` : '';
+
+	switch (ref.type) {
+		case 'chapter':
+			return `${prefix}${ref.start_chapter}`;
+		case 'range_chapters':
+			return `${prefix}${ref.start_chapter}–${ref.end_chapter}`;
+		case 'verse':
+			return `${prefix}${ref.start_chapter}:${ref.start_verse}`;
+		case 'range_verses':
+			return `${prefix}${ref.start_chapter}:${ref.start_verse}–${ref.end_verse}`;
+		case 'range_multi':
+			return `${prefix}${ref.start_chapter}:${ref.start_verse}–${ref.end_chapter}:${ref.end_verse}`;
+		case 'book':
 		default:
 			return bookName;
 	}
